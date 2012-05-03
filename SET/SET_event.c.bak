@@ -1,0 +1,972 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h> /* access() */
+#include "cpu.h"    /* cpu_single_env */
+#include "SET_event.h"
+
+//chiaheng
+//static int now_pid;
+static volatile int now_pid;
+static char current_name[PROCESS_NAME_LEN];
+
+//tianman
+SETProcess *now_process;
+char pid_name_base[512][32]={'\0'};
+int pid_base[512][32];
+char* now_name;
+char process_name[PROCESS_NAME_LEN];
+
+
+#define PROC_HASH_TABLE_SIZE 32749
+/*
+ * Hash table for running processes
+ * Using pid as the key.
+ * Linear probing for collision handing
+ */
+static SETProcess *procHashTable[PROC_HASH_TABLE_SIZE];
+
+//chiaheng
+inline int getCurrentPID()
+{
+	return now_pid;
+}
+
+static inline void proc_insert(SETProcess *process)
+{
+    int hash;
+    /* Linear probing for searching a free location */
+    for (hash = process->pid % PROC_HASH_TABLE_SIZE; procHashTable[hash] != NULL; hash = (hash+1) % PROC_HASH_TABLE_SIZE)
+    {
+        if (procHashTable[hash]->pid == process->pid)
+        {
+            fprintf(stderr, "SET device: The process is already created, pid: %d\n", process->pid);
+            return;
+        }
+    }
+    procHashTable[hash] = process;
+    process->hash_pos = (void *) &procHashTable[hash];
+}
+
+static inline SETProcess *proc_find(int pid)
+{
+    int hash;
+    /* Linear probing */
+    for (hash = pid % PROC_HASH_TABLE_SIZE; procHashTable[hash] != NULL; hash = (hash+1) % PROC_HASH_TABLE_SIZE)
+    {
+        if (procHashTable[hash]->pid == pid)
+            return procHashTable[hash];
+    }
+
+    return NULL;
+}
+
+static inline void SET_start_tracing(SETProcess *process)
+{
+    /* Create output stream according to ProcessType */
+    if (process->output != NULL)
+    {
+        if (SET_output_open_type_vpmu(process->output, set.model) != 0)
+            goto fail;
+        if (SET_output_open_pid(process->output) != 0)
+            goto fail;
+        if (process->type & (SET_PROCESS_KERNEL | SET_PROCESS_IRQ | SET_PROCESS_LIBRARY | SET_PROCESS_USER_C))
+        {
+            if (SET_output_open_obj_func(process->output) != 0)
+                goto fail;
+#ifdef CONFIG_SET_DWARF
+            /* FIXME */
+            if (SET_output_open_dwarf(process->output) != 0)
+                goto fail;
+#endif
+        }
+        if (process->type & SET_PROCESS_DALVIK)
+        {
+            if (SET_output_open_dex_method(process->output) != 0)
+                goto fail;
+        }
+        if (process->type & SET_PROCESS_SYSCALL)
+        {
+            if (SET_output_open_syscall(process->output) != 0)
+                goto fail;
+        }
+    }
+
+    /* Load object file */
+    ObjFile *obj;
+    if (process->type & SET_PROCESS_USER_C)
+    {
+        obj = SET_create_obj(process->path_c, 0, 0xffffffff, 0);
+        if (obj == NULL)
+            goto fail;
+        else
+            SET_attach_obj(process, obj);
+    }
+    if (process->type & (SET_PROCESS_KERNEL | SET_PROCESS_IRQ))
+    {
+        obj = SET_create_obj(process->path_kernel, 0, 0xffffffff, 0);
+        if (obj == NULL)
+            goto fail;
+        else
+        {
+            if (process->output)
+                SET_output_write_obj(process->output, obj->id, obj->path);
+            obj->count++;
+            process->objKernel = obj;
+        }
+
+        /* Create data structures (call stack) used for native tracing */
+        process->irq = (Stack *) calloc(1, sizeof(Stack));
+        if (process->irq == NULL)
+        {
+            fprintf(stderr, "SET device: No memory space to allocate Stack!\n");
+            goto fail;
+        }
+
+        if (process->type & SET_PROCESS_KERNEL)
+        {
+            process->kernel = (Stack *) calloc(1, sizeof(Stack));
+            if (process->kernel == NULL)
+            {
+                fprintf(stderr, "SET device: No memory space to allocate Stack!\n");
+                goto fail;
+            }
+        }
+        if (process->type & SET_PROCESS_IRQ)
+        {
+            process->ic = (Stack *) calloc(1, sizeof(Stack));
+            if (process->ic == NULL)
+            {
+                fprintf(stderr, "SET device: No memory space to allocate Stack!\n");
+                goto fail;
+            }
+        }
+    }
+
+    if (process->type & (SET_PROCESS_LIBRARY | SET_PROCESS_USER_C))
+    {
+        process->user = (Stack *) calloc(1, sizeof(Stack));
+        if (process->user == NULL)
+        {
+            fprintf(stderr, "SET device: No memory space to allocate Stack!\n");
+            goto fail;
+        }
+    }
+
+    /* Succeed */
+    process->pid = now_pid;
+    (*process->tracing)++;
+    set.tracing_process = process;
+	//chiaheng
+    if (process->output != NULL && !VPMU_enabled)
+        SET_start_vpmu();
+
+    fprintf(stderr, "SET device: Start tracing process \"%s\", pid: %d\n", process->name, process->pid);
+    return;
+
+fail:
+    SET_detach_process(process);
+    SET_delete_process(process);
+}
+
+static inline void SET_end_tracing(SETProcess *process)
+{
+    SET_detach_process(process);
+    SET_delete_process(process);
+
+    if (!SET_has_process_being_tracing())
+        SET_stop_vpmu();
+}
+
+static inline void SET_event_execve()
+{
+    SETProcess *process;
+    int i;
+    for (i = 0; i < set.procTableSize; i++)
+    {
+        process = set.procTable[i];
+        if (strcmp(process->name, current_name) == 0)
+        {
+            SET_start_tracing(process);
+            proc_insert(process);
+            return;
+        }
+    }
+}
+
+static inline void SET_event_exit()
+{
+    SETProcess *tracing_process = set.tracing_process;
+
+    if (tracing_process == NULL)
+        return;
+
+    set.tracing_process = NULL;
+
+    *((SETProcess **) tracing_process->hash_pos) = NULL;
+    SET_end_tracing(tracing_process);
+}
+
+static inline void SET_event_cs()
+{
+    set.tracing_process = proc_find(now_pid);
+}
+
+static inline void SET_event_mmap(char *name, uint32_t start, uint32_t end, uint32_t pgoff)
+{
+    SETProcess *tracing_process = set.tracing_process;
+    char path[FULL_PATH_LEN];
+    DexFile *dex;
+    ObjFile *obj;
+    int i;
+
+    if (tracing_process == NULL)
+        return;
+
+    if (SET_is_dex(name))
+    {
+        if (tracing_process->type & (SET_PROCESS_DALVIK | SET_PROCESS_MMAP))
+        {
+            /* '@' to '.' */
+            char changedName[FULL_PATH_LEN];
+            int last_at = 0;
+            for (i = 0; (changedName[i] = *(name++)) != '\0'; i++)
+            {
+                if (changedName[i] == '@')
+                {
+                    changedName[i] = '/';
+                    last_at = i;
+                }
+            }
+            changedName[last_at] = '\0';
+
+            snprintf(path, sizeof(path), "%s/%s", path_android_out, changedName);
+            if (access(path, F_OK))
+                return;
+
+            dex = SET_create_dex(path, start, end);
+            if (dex != NULL)
+                SET_attach_dex(tracing_process, dex);
+        }
+    }
+    else if (tracing_process->type & (SET_PROCESS_LIBRARY | SET_PROCESS_MMAP))
+    {
+        snprintf(path, sizeof(path), "%s/symbols/system/lib/%s", path_android_out, name);
+        if (access(path, F_OK))
+        {
+            snprintf(path, sizeof(path), "%s/symbols/system/bin/%s", path_android_out, name);
+            if (access(path, F_OK))
+            {
+                snprintf(path, sizeof(path), "%s/lib/%s", path_set_out, name);
+                if (access(path, F_OK))
+                    return;
+            }
+        }
+
+        /* Avoid duplicated objects*/
+        for (i = 0; i < tracing_process->objTableSize; i++)
+            if (strcmp(path, tracing_process->objTable[i]->path) == 0)
+                return;
+
+        obj = SET_create_obj(path, start, end, pgoff);
+        if (obj != NULL)
+            SET_attach_obj(tracing_process, obj);
+    }
+}
+
+static inline void SET_event_thread_create(int child_pid)
+{
+    SETProcess *tracing_process = set.tracing_process;
+    SETProcess *child_process;
+
+    if (tracing_process == NULL)
+        return;
+
+    child_process = SET_copy_process(tracing_process);
+    if (child_process != NULL)
+    {
+        child_process->pid = child_pid;
+        SET_attach_process(child_process);
+        proc_insert(child_process);
+    }
+}
+
+void SET_event_start_dalvik(char *name)
+{
+    SETProcess *process;
+    SETProcess *zygote;
+    int i;
+
+	//tianman
+	pid_base[now_pid][0] = 1;
+	strcpy(pid_name_base[now_pid], name);
+
+    for (i = 0; i < set.procTableSize; i++)
+    {
+        process = set.procTable[i];
+        if (strcmp(process->name, name) == 0)
+        {
+            /* FIXME */
+            SET_start_tracing(process);
+            proc_insert(process);
+
+            /* Get mmap() information of "zygote" process */
+            for (i = 0; i < set.procTableSize; i++)
+            {
+                zygote = set.procTable[i];
+                if (strcmp(zygote->name, "app_process") == 0)
+                {
+                    if (process->type & SET_PROCESS_DALVIK)
+                    {
+                        /* Copy dexes from "zygote" to "process", like SET_attach_dex() */
+                        for (i = 0; i < zygote->dexTableSize; i++)
+                        {
+                            process->dexTable[i] = zygote->dexTable[i];
+                            if (process->output)
+                                SET_output_write_dex(process->output, process->dexTable[i]->id, process->dexTable[i]->path);
+                            process->dexTable[i]->count++;
+                        }
+                        process->dexTableSize = zygote->dexTableSize;
+                    }
+
+                    if (process->type & SET_PROCESS_LIBRARY)
+                    {
+                        /* Copy objs from "zygote" to "process", like SET_attach_obj() */
+                        for (i = 0; i < zygote->objTableSize; i++)
+                        {
+                            process->objTable[i] = zygote->objTable[i];
+                            if (process->output)
+                                SET_output_write_obj(process->output, process->objTable[i]->id, process->objTable[i]->path);
+                            process->objTable[i]->count++;
+                        }
+                        process->objTableSize = zygote->objTableSize;
+                    }
+                    return;
+                }
+            }
+            fprintf(stderr, "SET device: No Zygote process exists");
+            return;
+        }
+    }
+}
+
+void SET_event_method_entry(int insns)
+{
+    SETProcess *tracing_process = set.tracing_process;
+    DexFile *dex;
+
+    if (tracing_process == NULL)
+        return;
+
+    if (!(tracing_process->type & SET_PROCESS_DALVIK))
+        return;
+
+    /* Search the dex table (an ordered list) */
+    if (tracing_process->dexTableSize == 0)
+        return;
+    if (insns < tracing_process->dexTable[0]->start)
+        return;
+
+    int i;
+    for (i = 1; i < tracing_process->dexTableSize; i++)
+        if (insns < tracing_process->dexTable[i]->start)
+            break;
+
+    dex = tracing_process->dexTable[i-1];
+    if (insns <= dex->end)
+    {
+        if (tracing_process->output)
+        {
+            SET_output_write_pid(tracing_process->output, tracing_process->pid);
+            SET_output_write_method(tracing_process->output, dex->id, insns - dex->start);
+        }
+//      fprintf(stderr, "SET device: -> pid %d %s %.8x\n", tracing_process->pid, dex->path, insns - dex->start);
+    }
+//  else
+//      fprintf(stderr, "SET device: Process \"%s\" %.8x GG\n", tracing_process->name, insns);
+}
+
+void SET_event_method_exit(int insns)
+{
+    SETProcess *tracing_process = set.tracing_process;
+    DexFile *dex;
+
+    if (tracing_process == NULL)
+        return;
+
+    if (!(tracing_process->type & SET_PROCESS_DALVIK))
+        return;
+
+    /* Search the dex table (an ordered list) */
+    if (tracing_process->dexTableSize == 0)
+        return;
+    if (insns < tracing_process->dexTable[0]->start)
+        return;
+
+    int i;
+    for (i = 1; i < tracing_process->dexTableSize; i++)
+        if (insns < tracing_process->dexTable[i]->start)
+            break;
+
+    dex = tracing_process->dexTable[i-1];
+    if (insns <= dex->end)
+    {
+        if (tracing_process->output)
+        {
+            SET_output_write_pid(tracing_process->output, tracing_process->pid);
+            SET_output_write_method(tracing_process->output, dex->id, insns - dex->start + 1);
+        }
+//      fprintf(stderr, "SET device: -> pid %d %s %.8x\n", tracing_process->pid, dex->path, insns - dex->start);
+    }
+//  else
+//      fprintf(stderr, "SET device: Process \"%s\" %.8x GG\n", tracing_process->name, insns);
+}
+
+#define SET_callstack_push(stack, size, addr)                   \
+    do {                                                        \
+        if (size < MAX_STACK_SIZE)                              \
+            stack[size++] = addr;                               \
+        else                                                    \
+            fprintf(stderr, "SET device: Stack overflow!\n");   \
+    } while(0)
+
+static inline void SET_event_branch_user(SETProcess *tracing_process, uint32_t target_addr, uint32_t return_addr)
+{
+    ObjFile *obj;
+    //tianman
+	//int i;
+	int i, j, k, len;
+
+    /* Search the object table (an ordered list) */
+    if (tracing_process->objTableSize == 0)
+		return;
+
+//tianman
+#if 0
+	int addr_guess;
+	addr_guess = cpu_single_env->regs[15];
+	fprintf(stderr,"addr=%x, target_addr=%x, return_addr=%x\n",addr_guess, target_addr,return_addr);
+#endif
+
+    if (target_addr >= tracing_process->objTable[0]->text_start)
+    {
+        for (i = 1; i < tracing_process->objTableSize; i++)
+        {
+            if (target_addr < tracing_process->objTable[i]->text_start)
+                break;
+        }
+        obj = tracing_process->objTable[i-1];
+        if (target_addr <= obj->text_end)
+        {
+            /* Search the function table (a hash table) for a function entry */
+            int idx;
+            for (idx = HASH(target_addr, obj->funcTableSize); obj->funcTable[idx].addr != 0; idx = (idx+1) % obj->funcTableSize)
+            {
+                /* Function entry */
+                if (target_addr == obj->funcTable[idx].addr)
+                {
+                    if (tracing_process->output)
+                    {
+                        SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                        SET_output_write_func(tracing_process->output, (obj->id << 16) | obj->funcTable[idx].symtabFuncIdx);
+//tianman
+#if 0
+						for(j=0;j<MAX_OBJ_TABLE_SIZE;j++){
+						if(online_func_name==NULL){
+							for(j=0;j<obj->func)
+								online_func_name[idx]=(char*) malloc(len+1);
+						}
+						fprintf(stderr,"123\n");
+						fflush(stderr);
+						if(online_func_name[idx]==NULL){
+							len = strlen(obj->funcTable[idx].funcName);
+							fprintf(stderr,"123\n");
+							fflush(stderr);
+							online_func_name[idx]=(char*) malloc(len+1);
+							fprintf(stderr,"123\n");
+							fflush(stderr);
+							strncpy(online_func_name[idx],obj->funcTable[idx].funcName, len+1);
+							fprintf(stderr,"123\n");
+							fflush(stderr);
+							online_func[idx][0]=vpmu_cycle_count();
+							fprintf("name[%d]=%s, count[%d][0]=%d",idx, online_func_name[idx], idx, online_func[idx][0]);
+						}
+						}
+
+#endif
+										
+                    }
+
+                    /* Push return address into call stack */
+                    if (tracing_process->return_addr == 0)  /* In the same object file */
+                        SET_callstack_push(tracing_process->user->stack, tracing_process->user->size, return_addr);
+                    else
+                    {
+                        SET_callstack_push(tracing_process->user->stack, tracing_process->user->size, tracing_process->return_addr);
+                        tracing_process->return_addr = 0;
+                    }
+#ifdef CONFIG_SET_DWARF
+                    /* DWARF */
+                    if (obj->func_dwarf)
+                    {
+                        uint32_t *stack_pointer;
+                        /* r13 is stack pointer */
+                        /* The stack implementation of ARM is full-descending */
+                        if (obj->func_dwarf[index].param_size > 4)
+                            stack_pointer = (uint32_t *) v2p(cpu_single_env->regs[13], 0);
+
+                        for (i = 0; i < obj->func_dwarf[index].param_size; i++)
+                        {
+                            if (i < 4)
+                                SET_output_write_dwarf(process->output, cpu_single_env->regs[i]);
+                            else
+                                SET_output_write_dwarf(process->output, *(stack_pointer++));
+                        }
+                    }
+#endif
+                    return;
+                }
+            }
+            /* Not found in the function table
+             * Search the process's call stack for a function exit
+             * "i" is the searching depth of call stack
+             */
+            for (i = 1; i <= tracing_process->user->size; i++)
+            {
+                /* Function exit */
+                if (target_addr == tracing_process->user->stack[tracing_process->user->size-i])
+                {
+                    /* If the address is a function return, use 0x00000000 + i to represent the number of returns */
+                    if (tracing_process->output)
+                    {
+                        SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                        SET_output_write_func(tracing_process->output, i);
+                    }
+                    tracing_process->user->size -= i;
+                    return;
+                }
+            }
+            return;
+        }
+    }
+    /* It is used for tracing library only (otherwise it may cause stack overflow) */
+    if (tracing_process->user->size > 0)
+    {
+        /* Check the return address called from "unknown" to library */
+        if (target_addr == tracing_process->user->stack[0])
+        {
+            if (tracing_process->output)
+            {
+                SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                SET_output_write_func(tracing_process->output, tracing_process->user->size);
+            }
+            tracing_process->user->size = 0;
+            return;
+        }
+    }
+    /* Target address of branch instruntion is Not in any object's text section */
+    tracing_process->return_addr = return_addr;
+}
+
+static inline void SET_event_branch_kernel(SETProcess *tracing_process, uint32_t target_addr, uint32_t return_addr)
+{
+    /* Search the function table (a hash table) for a function entry */
+    ObjFile *obj = tracing_process->objKernel;
+    int idx;
+    for (idx = HASH(target_addr, obj->funcTableSize); obj->funcTable[idx].addr != 0; idx = (idx+1) % obj->funcTableSize)
+    {
+        /* Function entry */
+        if (target_addr == obj->funcTable[idx].addr)
+        {
+            if (tracing_process->output)
+            {
+                SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                SET_output_write_func(tracing_process->output, (obj->id << 16) | obj->funcTable[idx].symtabFuncIdx);
+            }
+
+            /* Push return address into call stack */
+            SET_callstack_push(tracing_process->kernel->stack, tracing_process->kernel->size, return_addr);
+            return;
+        }
+    }
+    /* Not found in the function table
+     * Search the process's call stack for a function exit
+     * "i" is the searching depth of call stack
+     */
+    int i;
+    for (i = 1; i <= tracing_process->kernel->size; i++)
+    {
+        /* Function exit */
+        if (target_addr == tracing_process->kernel->stack[tracing_process->kernel->size-i])
+        {
+            /* If the address is a function return, use 0x00010000 + i to represent the number of returns */
+            if (tracing_process->output)
+            {
+                SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                SET_output_write_func(tracing_process->output, 0x00010000 | i);
+            }
+            tracing_process->kernel->size -= i;
+        }
+    }
+}
+
+static inline void SET_event_branch_irq(SETProcess *tracing_process, uint32_t target_addr, uint32_t return_addr)
+{
+    /* Search the function table (a hash table) for a function entry */
+    ObjFile *obj = tracing_process->objKernel;
+    int idx;
+    for (idx = HASH(target_addr, obj->funcTableSize); obj->funcTable[idx].addr != 0; idx = (idx+1) % obj->funcTableSize)
+    {
+        /* Function entry */
+        if (target_addr == obj->funcTable[idx].addr)
+        {
+            if (tracing_process->output)
+            {
+                SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                SET_output_write_func(tracing_process->output, 0x00030000 | obj->funcTable[idx].symtabFuncIdx);
+            }
+
+            /* Push return address into call stack */
+            SET_callstack_push(tracing_process->ic->stack, tracing_process->ic->size, return_addr);
+            return;
+        }
+    }
+    /* Not found in the function table
+     * Search the interrupt context's call stack for a function exit
+     * "i" is the searching depth of call stack
+     */
+    int i;
+    for (i = 1; i <= tracing_process->ic->size; i++)
+    {
+        /* Function exit */
+        if (target_addr == tracing_process->ic->stack[tracing_process->ic->size-i])
+        {
+            /* If the address is a function return, use 0x00020000 + i to represent the number of returns */
+            if (tracing_process->output)
+            {
+                SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                SET_output_write_func(tracing_process->output, 0x00020000 | i);
+            }
+            tracing_process->ic->size -= i;
+        }
+    }
+}
+
+void SET_event_branch(uint32_t target_addr, uint32_t return_addr)
+{
+    /* Dynamic instrumentation of kernel events */
+    if (return_addr >= 0xc0000000 && return_addr >= 0xc0000000)
+    {
+        KerFunc *kerFuncTable = set.kerFuncTable;
+        int idx;
+        for (idx = HASH(target_addr, KER_TABLE_SIZE); kerFuncTable[idx].addr != 0; idx = (idx+1) % KER_TABLE_SIZE)
+        {
+            if (target_addr == kerFuncTable[idx].addr)
+            {
+                char *name;
+                int i, ch;
+                uint32_t mmap_file, mmap_start, mmap_end, mmap_pgoff;
+                uint32_t clone_flags;
+                int fork_pid, fork_tgid;
+				
+				//tianman
+				int j;
+				int temp;
+				char *a1, *a2, *a4, *bak;
+				int *a3;
+				int count;
+				int save_char;
+
+                switch (kerFuncTable[idx].event)
+                {
+                    case EXECVE:
+                        if ((return_addr > kerFuncTable[idx].retFunc->start) && (return_addr <= kerFuncTable[idx].retFunc->end))
+                        {
+                            name = (char *) v2p(*((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 43), 0);
+                            /* Copies the binary name from after last slash */
+                            for (i = 0; (ch = *(name++)) != '\0';)
+                            {
+                                if (ch == '/')
+                                    i = 0;  /* overwrite what we wrote */
+                                else if (i < (sizeof(current_name) - 1))
+                                    current_name[i++] = ch;
+                            }
+                            current_name[i] = '\0';
+
+							//tianman
+							//for(i=0;i<512;i++){
+							//	if(pid_name_base[i][0]=='\0'){                                    
+							//		strcpy(pid_name_base[i],current_name);
+							//		pid_base[i][0] = now_pid;
+							//		//fprintf(stderr," ii=%d now_pid %d %s\n",i,pid_base[i][0],pid_name_base[i]);
+							//		break;
+							//	}
+							//}
+							if (pid_name_base[now_pid][0] == '\0')
+								strcpy(pid_name_base[now_pid], current_name);
+
+                            SET_event_execve();
+                        }
+                        break;
+                    case EXIT:
+                        SET_event_exit();
+                        break;
+                    case CS:
+                        now_pid = (int) *((uint32_t *) v2p(*((uint32_t *) v2p(cpu_single_env->regs[2], 0) + 3), 0) + 123);
+
+						//tianman
+						if(now_pid==0){                    
+							if(pid_base[0][0]==-1){            
+								pid_base[0][0]=1;              
+								strcpy(pid_name_base[0], "sched");                                                                          
+							}
+							else if(pid_base[0][0]==1){        
+								break;                     
+							}
+						}
+
+                        SET_event_cs();
+                        break;
+                    case MMAP:
+                        if ((return_addr > kerFuncTable[idx].retFunc->start) && (return_addr <= kerFuncTable[idx].retFunc->end))
+                        {
+                            mmap_file = *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 18);
+                            if (mmap_file)
+                            {
+                                name = (char *) v2p(*((uint32_t *) v2p(*((uint32_t *) v2p(mmap_file, 0) + 3), 0) + 9), 0);
+                                mmap_start = *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 1);
+                                mmap_end = *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 2);
+                                mmap_pgoff = *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 17);
+                                SET_event_mmap(name, mmap_start, mmap_end, mmap_pgoff);
+                            }
+                        }
+                        break;
+                    case FORK:
+                        if ((return_addr > kerFuncTable[idx].retFunc->start) && (return_addr <= kerFuncTable[idx].retFunc->end))
+                        {
+                            clone_flags = cpu_single_env->regs[1];
+                            fork_pid = (int) *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 123);
+                            if (clone_flags & 0x00000100)   /* 0x00000100 is CLONE_VM */
+                            {
+                                fork_tgid = (int) *((uint32_t *) v2p(cpu_single_env->regs[0], 0) + 124);
+                                if (fork_pid != fork_tgid){
+                                    SET_event_thread_create(fork_pid);
+
+									//tianman
+									for(i=1;i<32;i++){
+										if(pid_base[fork_tgid][i]==-1){
+											pid_base[fork_tgid][i]=fork_pid;
+											break;
+										}
+									}
+
+									pid_base[fork_pid][0]=1;
+
+									if(pid_name_base[fork_pid][0]=='\0')
+										strcpy(pid_name_base[fork_pid],pid_name_base[fork_tgid]);
+
+									if(pid_name_base[fork_pid][0]=='\\')
+										strcpy(pid_name_base[fork_pid],pid_name_base[fork_tgid]);
+
+
+								}
+                                else
+                                {
+                                    /*
+                                     * FIXME Virtual Memory are shared between processes (not threads)
+                                     * So mmap() happened in one process should take place in another process
+                                     */
+
+									//tianman
+									//for(i=0;i<512;i++){
+									//	if(fork_pid<3)  //ignore 0, init, kthreadd
+									//		break;
+									//	if(fork_pid>25) //25,26,27 are rpciod/0 and only 25 can detect at kthread
+									//		break;
+									//	if(pid_base[i][0]==0){
+									//		pid_base[i][0]=fork_pid;
+									//		//fprintf(stderr," i %d pid %d tgid %d\n", i,fork_pid,fork_tgid); 
+									//		break;
+									//	}
+									//}
+									pid_base[fork_pid][0] = 1;
+
+									if (fork_pid < 3)
+									{
+										if (fork_pid == 1)
+											strcpy(pid_name_base[fork_pid], "init");
+										else if (fork_pid == 2)
+											strcpy(pid_name_base[fork_pid], "kthread");
+									}
+
+									if (pid_name_base[fork_pid][0] == '\0')
+										pid_name_base[fork_pid][0] = '\\';
+
+
+                                }
+                            }
+                            else
+                            {
+								//tianman
+								pid_base[fork_pid][0] = 1;
+                                /* FIXME fork */
+                            }
+                        }
+                        break;
+					
+					//tianman
+					case KTHREAD:
+						if ((return_addr > kerFuncTable[idx].retFunc->start) && (return_addr <= kerFuncTable[idx].retFunc->end))
+						{
+							a1 = (char *) v2p((uint32_t *)(cpu_single_env->regs[2]),0);
+							//fprintf(stderr,"name  %s\n",a1);
+							a2 = (char *) v2p((uint32_t *)(cpu_single_env->regs[3]),0);
+
+							bak = a1;
+							count = 0;
+							for (i = 0; (ch = *(bak++)) != '\0';)
+							{
+								if (ch == '%'){
+									count++;
+									save_char=*(bak);
+								}
+
+							}
+
+							if(count==2){
+								a3=*(uint32_t *)v2p(cpu_single_env->regs[3]+4,0);
+								//fprintf(stderr,"2kthread name is %d\n",a3);
+								a4=(char*)v2p(*(uint32_t *)v2p(cpu_single_env->regs[3],0),0);
+								//fprintf(stderr,"2kthread name is %s\n",a4);
+								snprintf(process_name, sizeof(process_name), a1, a4, a3);
+							}
+							else if(count==1){
+								if(save_char=='d'){
+									a3=*(uint32_t *)v2p(cpu_single_env->regs[3],0);
+									//fprintf(stderr,"1kthread name is %d\n",a3);
+									snprintf(process_name, sizeof(process_name), a1, a3);
+								}
+								else{
+									a4=(char*)v2p(*(uint32_t *)v2p(cpu_single_env->regs[3],0),0);
+									//fprintf(stderr,"2kthread name is %s\n",a4);
+									snprintf(process_name, sizeof(process_name), a1, a4);
+								}
+							}
+							//fprintf(stderr, "process name = %s\n",process_name);
+
+							for(i=0;i<512;i++){
+								if(pid_name_base[i][0]=='\\'){
+									strcpy(pid_name_base[i],process_name);
+									//fprintf(stderr,"i %d name %s pid %d\n", i, pid_name_base[i], pid_base[i][0]);
+									break;
+								}
+							}
+
+						}
+						break;
+                    default:
+                        break;
+                }
+                break;
+            }
+        }
+    }
+
+    SETProcess *tracing_process = set.tracing_process;
+
+    if (tracing_process == NULL)
+        return;
+
+    /* Check if PC is in an interrupt context or in a process context */
+    if (tracing_process->type & (SET_PROCESS_KERNEL | SET_PROCESS_IRQ))
+    {
+        /* In interrupt context */
+        if (tracing_process->irq->size > 0)
+        {
+            /* Return from an interrupt context */
+            if (target_addr == tracing_process->irq->stack[tracing_process->irq->size-1])
+            {
+                tracing_process->irq->size--;
+
+                if (tracing_process->type & SET_PROCESS_IRQ && tracing_process->ic->size > 0)
+                {
+                    /* Pop all the elements in interrupt context's call stack
+                     * Use 0x00020000 + i to represent the number of returns */
+                    if (tracing_process->output)
+                    {
+                        SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                        SET_output_write_func(tracing_process->output, 0x00020000 | tracing_process->ic->size);
+                    }
+                    tracing_process->ic->size = 0;
+                }
+                return;
+            }
+
+            /* PC must be in kernel space now */
+            if (tracing_process->type & SET_PROCESS_IRQ)
+                SET_event_branch_irq(tracing_process, target_addr, return_addr);
+
+            return;
+        }
+    }
+
+    if (target_addr < 0xc0000000)
+    {
+        /* "return_addr" is limited to user space to avoid duplicated instruction trace caused by context switch */
+        if (return_addr < 0xc0000000)
+        {
+            if (tracing_process->type & (SET_PROCESS_LIBRARY | SET_PROCESS_USER_C))
+                SET_event_branch_user(tracing_process, target_addr, return_addr);
+        }
+        else
+        {
+            /* Switch from SVC to USR mode */
+            if (tracing_process->type & SET_PROCESS_KERNEL && tracing_process->kernel->size > 0)
+            {
+                /* Pop all the elements in kernel's call stack
+                 * Use 0x00010000 + i to represent the number of returns */
+                if (tracing_process->output)
+                {
+                    SET_output_write_pid(tracing_process->output, tracing_process->pid);
+                    SET_output_write_func(tracing_process->output, 0x00010000 | tracing_process->kernel->size);
+                }
+                tracing_process->kernel->size = 0;
+            }
+        }
+    }
+    else
+    {
+        if (tracing_process->type & SET_PROCESS_KERNEL)
+            SET_event_branch_kernel(tracing_process, target_addr, return_addr);
+    }
+}
+
+void SET_event_syscall(uint32_t addr)
+{
+    SETProcess *tracing_process = set.tracing_process;
+
+    if (tracing_process == NULL)
+        return;
+
+    if (!(tracing_process->type & SET_PROCESS_SYSCALL))
+        return;
+
+    if (tracing_process->output)
+    {
+        SET_output_write_pid(tracing_process->output, tracing_process->pid);
+        SET_output_write_syscall(tracing_process->output, cpu_single_env->regs[7]);
+    }
+}
+
+void SET_event_interrupt(uint32_t return_addr)
+{
+    SETProcess *tracing_process = set.tracing_process;
+
+    if (tracing_process == NULL)
+        return;
+
+    if (!(tracing_process->type & (SET_PROCESS_KERNEL | SET_PROCESS_IRQ)))
+        return;
+
+    SET_callstack_push(tracing_process->irq->stack, tracing_process->irq->size, return_addr);
+}

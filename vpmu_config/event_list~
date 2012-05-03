@@ -1,0 +1,63 @@
+# Performance Events To Be Monitored.
+# Instructions related events.
+TOT_INST,1,number of executed instructions
+USR_INST,0,number of executed instructions in User mode
+SVC_INST,0,number of executed instructions in SVC mode
+IRQ_INST,0,number of executed instructions in interrupt context
+REST_INST,1,number of executed instructions (Not listed above)
+
+TOT_LD_ST_INST,0,number of load/store instructions
+TOT_USR_LD_ST_INST,0,number of load/store instructions in User mode
+TOT_SVC_LD_ST_INST,0,number of load/store instructions in SVC mode
+TOT_IRQ_LD_ST_INST,0,number of load/store instructions in IRQ mode
+TOT_REST_LD_ST_INST,0,number of load/store instructions (Not listed above)
+
+TOT_LD_INST,0,number of load instructions
+TOT_USR_LD_INST,0,number of load instructions in User mode
+TOT_SVC_LD_INST,0,number of load instructions in SVC mode
+TOT_IRQ_LD_INST,0,number of load instructions in IRQ mode
+TOT_REST_LD_INST,0,number of load instructions (Not listed above)
+
+TOT_ST_INST,0,number of store instructions
+TOT_USR_ST_INST,0,number of store instructions in User mode
+TOT_SVC_ST_INST,0,number of store instructions in SVC mode
+TOT_IRQ_ST_INST,0,number of store instructions in IRQ mode
+TOT_REST_ST_INST,0,number of store instructions (Not listed above)
+PC_CHANGE,0,number of times the PC is modified (all_changes_to_PC)
+
+# Branch related events.
+BRANCH_INST,0,number of executed branch instructions
+BRANCH_PREDICT_CORRECT,0,number of correctly predicted branches
+BRANCH_PREDICT_WRONG,0,number of mis-predicted branches
+
+# Cache realted events.
+# Please make sure you have turned on the cache simulation.
+DCACHE_ACCESSES_CNT,0,number of data cache accesses
+DCACHE_WRITE_MISS,0,number of data cache write misses
+DCACHE_READ_MISS,0,number of data cache read misses
+DCACHE_MISS,0,number of data cache misses (read + write misses)
+ICACHE_ACCESSES_CNT,0,number of instruction cache accesses
+ICACHE_MISS,0,number of instruction cache misses
+
+# Memory acess.
+SYSTEM_MEM_ACCESS,0,number of memory acesses due to cache misses
+IO_MEM_ACCESS,0,number of memory-mapped IO acesses
+
+# Estimated execution time
+ELAPSED_CPU_CYC,1,number of elapsed cycles in pipeline
+ELAPSED_EXE_TIME,1,estimated execution time (nanosecond)
+ELAPSED_PIPELINE_CYC,0,elapsed cycles in CPU core for emulated Instructions
+ELAPSED_PIPELINE_EXE_TIME,1,estimated time (ns) in CPU core for emulated Instructions
+ELAPSED_SYSTEM_MEM_CYC,0,elapsed cycles for memory accesses
+ELAPSED_SYSTEM_MEM_ACC_TIME,1,estimated time (ns) for memory accesses
+ELAPSED_IO_MEM_CYC,0,elapsed cycles for memory-mapped IO
+ELAPSED_IO_MEM_ACC_TIME,1,estimated time (ns) for memory-mapped IO
+
+# Power/Energy events.
+TOTAL_POWER,0,power consumption of the platform
+MPU_POWER,0,power consumption (uW) of main processor
+LCD_POWER,0,power consumption (uW) of LCD
+AUDIO_POWER,0,power consumption (uW) of AUDIO device
+NET_POWER,0,power consumption (uW) of networking
+GPS_POWER,0,power consumption (uW) of GPS
+
