@@ -31,6 +31,10 @@
 #include "vpmu.h"
 #endif  // CONFIG_VPMU
 
+#ifdef CONFIG_VND
+#include "m2m.h"
+#endif
+
 #define  D(...)  VERBOSE_PRINT(init,__VA_ARGS__)
 
 #define ARM_CPU_SAVE_VERSION  1
@@ -119,6 +123,20 @@ static void android_arm_init_(ram_addr_t ram_size,
     }
 #endif
 
+//Converse2006 Virtual Network Device 
+#ifdef CONFIG_VND
+        struct goldfish_device *vn_device;
+        vn_device = qemu_mallocz(sizeof(*vn_device));
+        vn_device->name = "vnd"; 
+        vn_device->id = 0;
+        vn_device->base = VND_BASE_ADDR;
+        vn_device->size = VND_IOMEM_SIZE;
+        vn_device->irq = 32;
+        vn_device->irq_count = 1;
+        goldfish_add_device_no_io(vn_device);
+        vnd_init(vn_device->base, goldfish_pic[vn_device->irq]);
+       
+#endif
     for(i = 0; i < MAX_NICS; i++) {
         if (nd_table[i].vlan) {
             if (nd_table[i].model == NULL

@@ -214,6 +214,7 @@ HW_SOURCES := \
     watchdog.c \
     vpmu-device.c \
     SET_device.c \
+	virtual-network-device.c \
 
 LOCAL_SRC_FILES += $(HW_SOURCES:%=hw/%)
 

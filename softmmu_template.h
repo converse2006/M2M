@@ -96,12 +96,14 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
 #endif
 #endif /* SHIFT > 2 */
 
+#ifdef CONFIG_VPMU
 	//evo0209
 	if (VPMU_enabled)
 	{
 		GlobalVPMU.iomem_test = 1;
 		//printf("softmmu I/O addr: %x", addr);
 	}
+#endif
     return res;
 }
 
@@ -283,11 +285,13 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
 #endif /* SHIFT > 2 */
 
 	//evo0209
+#ifdef CONFIG_VPMU
 	if (VPMU_enabled)
 	{
 		GlobalVPMU.iomem_test = 1;
 		//printf("softmmu I/O addr: %x", addr);
 	}
+#endif
 }
 
 void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
