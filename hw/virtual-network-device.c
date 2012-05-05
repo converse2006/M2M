@@ -18,7 +18,7 @@
 #include "goldfish_device.h" 
 
 #include "m2m.h"
-//#include "m2m_internal.h"
+#include "hw/m2m_internal.h"
 /***************************
  *  Macro Define
  */
@@ -61,7 +61,6 @@ typedef struct VNDState_t
 /* QEMU realted device information, such as BUS, IRQ, VND strucutre. */ 
 VNDState_t vnd_t;
 struct VND GlobalVND;
-int level = 2; //M2M_DBG
 
 /***************************
  *  Internal Function
@@ -69,11 +68,13 @@ int level = 2; //M2M_DBG
 
 static void special_read(void *opaque, target_phys_addr_t addr)
 {
+    int level = 2; //M2M_DBG
     M2M_DBG(level, GENERAL, "VND: special read");
 }
 
 static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+    int level = 2; //M2M_DBG
     //ERR_MSG( "%s: Bad register (CRm value) 0x%x\n", __FUNCTION__, value);
     M2M_DBG(level, GENERAL, "VND: special write,address = %x value is 0x%x(%d) ",addr, value,value);
     VND *vnd = ((VNDState *)opaque)->VND;
@@ -84,15 +85,28 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
         case ZIGBEE: {
             switch(addr % NET_DIST)
             { 
-                case NETWORK_INITIALIZATION: {
-                            M2M_DBG(level, GENERAL, "Network device initialization: Device ID = %d",vnd->DeviceID);
+                case NETWORK_INIT: {
                             vnd->DeviceID = value;
-                            /*rc = m2m_topology_init();
+                            M2M_DBG(level, GENERAL, "Network device initialization: Device ID = %d",vnd->DeviceID);
+                            rc = m2m_topology_init(vnd->DeviceID);
 
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_mm_init();
-
                             if(rc == M2M_SUCCESS)
+                            {
+                                int flag = 0;
+                                if(!strcmp(vnd->DeviceType, "ZC")) 
+                                    flag = 1; 
+                                if(!strcmp(vnd->DeviceType, "ZR")) 
+#ifdef ROUTER_RFD
+                                    flag = 0;
+#else
+                                    flag = 1;
+#endif
+                                    if(flag)
+                                    rc = m2m_route_processor_init();
+                            }
+                            /*if(rc == M2M_SUCCESS)
                                 rc = m2m_sbp_init();
 
                             if(rc == M2M_SUCCESS)
@@ -122,6 +136,19 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             destination = (uint32_t)v2p(packet->DataAddress, 0) ;
                             char message[]= "PasLab Data Receive"; //Testing data
                             strcpy(destination,message);
+                        }break;
+                case NETWORK_EXIT: {
+                            M2M_DBG(level, GENERAL, "Network device exit: Device ID = %d",vnd->DeviceID);
+
+                                rc = m2m_mm_exit();
+
+                            /*if(rc == M2M_SUCCESS)
+                                rc = m2m_sbp_init();
+
+                            if(rc == M2M_SUCCESS)
+                                rc = 
+                            */
+
                         }break;
                 default:break;
             }

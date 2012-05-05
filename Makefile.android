@@ -215,6 +215,9 @@ HW_SOURCES := \
     vpmu-device.c \
     SET_device.c \
 	virtual-network-device.c \
+	m2m_topology.c \
+	m2m_mm.c \
+	m2m_route_processor.c \
 
 LOCAL_SRC_FILES += $(HW_SOURCES:%=hw/%)
 
@@ -369,6 +372,7 @@ SET_LDLIBS := -L$(LOCAL_PATH) -ldwarf -lelf
 endif
 
 include $(BUILD_HOST_STATIC_LIBRARY)
+
 
 ##############################################################################
 # SDL-related definitions
