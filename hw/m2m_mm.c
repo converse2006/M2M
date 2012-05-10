@@ -4,8 +4,8 @@
 
 /* global variables--------------*/
 int shmid;
-char *shm_address;
-char* shm_address_location;
+long shm_address;
+long shm_address_location;
 unsigned long long SHM_SIZE;
 
 extern int TotalNetworkTypeDevice[3];
@@ -14,7 +14,7 @@ extern VND GlobalVND;
 M2M_ERR_T m2m_mm_init()
 {
     int level = 2;
-    int rc = M2M_SUCCESS;
+    M2M_ERR_T rc = M2M_SUCCESS;
     key_t key = x86_SHM_KEY; 
     M2M_DBG(level, GENERAL, "COORDINATOR_SIZE = %d", COORDINATOR_SIZE);
     M2M_DBG(level, GENERAL, "ROUTER_SIZE = %d", ROUTER_SIZE);
@@ -34,6 +34,7 @@ M2M_ERR_T m2m_mm_init()
     {perror("shmat failed");    exit(-1);}
 
     shm_address_location = (long)shm_address;
+    //fprintf(stderr, "shm_address_location = %d \n", shm_address_location);
 
     return rc;
 }
@@ -43,9 +44,9 @@ M2M_ERR_T m2m_mm_exit()
     int level = 2;
     int errno;
     struct shmid_ds *shmid_ds=NULL;
-    if(!strcmp(GlobalVND.DeviceType, "ZC"))
+    //if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
-        M2M_DBG(level, GENERAL, "Coordinator in m2m_mm_exit");
+        //M2M_DBG(level, GENERAL, "Coordinator in m2m_mm_exit");
 
         // Detach the shared memory
         if((errno = shmdt((void *)shm_address)) == -1)
@@ -55,7 +56,7 @@ M2M_ERR_T m2m_mm_exit()
 
         printf("Remove the shared region\n");
     }
-    else
-        M2M_DBG(level, GENERAL, "Others in m2m_mm_exit");
+    /*else
+        M2M_DBG(level, GENERAL, "Others in m2m_mm_exit");*/
     return M2M_SUCCESS;
 }

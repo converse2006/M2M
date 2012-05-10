@@ -18,6 +18,7 @@
 /*------------------------------------------------------------*/
 #define VND_BASE_ADDR 0xe0000000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
+#define ZR_FFD
 typedef struct VND{
     uint32_t DeviceID;
     char DeviceType[3];
@@ -25,9 +26,16 @@ typedef struct VND{
     int Position[3];
     int Neighbors[8];
     int NeighborNum;
+    long Shared_memory_address;
     uint64_t ND_power;
     uint64_t ND_localclock;
 }VND;
+
+/*typedef struct DeviceStruct{
+    char DeviceType[3];
+    long shm_location;
+    int Neighbors[8];
+}DeviceStruct;*/
 
 typedef enum
 {

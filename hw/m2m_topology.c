@@ -1,10 +1,14 @@
 #include "m2m.h"
 #include "m2m_internal.h"
+#include "m2m_mm.h"
 
 int TotalNetworkTypeDevice[3]= {0};
 int BeforeNetworkTypeDevice[3] = {0};
 unsigned int NODE_MAP[MAX_NODE_NUM][MAX_NODE_NUM];
 unsigned int NODE_LOCATION[MAX_NODE_NUM][3];
+long NODE_SHM_LOCATION[MAX_NODE_NUM] = {0};
+
+extern long shm_address;
 extern VND GlobalVND;
 static M2M_ERR_T node_infofetch(int DeviceID);
 
@@ -12,7 +16,15 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
 {
     int rc = M2M_SUCCESS;
     fprintf(stderr,"m2m_topology!!\n");
+    int ind;
+    for(ind = 0; ind < 3; ind++)
+    {
+        TotalNetworkTypeDevice[ind]= 0;
+        BeforeNetworkTypeDevice[ind] = 0;
+    }
+
     rc = node_infofetch(DeviceID);
+
 #ifdef DEBUG_M2M
     if(rc == M2M_SUCCESS)
     {
@@ -23,11 +35,14 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
     return rc;
 }
 
+
+
 //  =====   INTERNAL FUNCTIONS  =======
 static M2M_ERR_T node_infofetch(int DeviceID)
 {
     FILE *pFile;
     char info[40];
+    long shm_location = 0;
     int index;
     GlobalVND.DeviceID = DeviceID;
     pFile = fopen("m2m_app/topology.conf","r");
@@ -37,15 +52,25 @@ static M2M_ERR_T node_infofetch(int DeviceID)
     if(DeviceID > GlobalVND.TotalDeviceNum) {fputs("DeviceID larger than Device number!",stderr); return M2M_ERROR; }
     for(index = 1; index <= GlobalVND.TotalDeviceNum; index++)
     {
+        NODE_SHM_LOCATION[index] = shm_location;
         if(index != DeviceID)
         {
             int ind = 0, select = 0;
             fgets(info, 40, pFile);
             switch(info[1]) //Counting each zigbee device type
             {
-                case 'C': TotalNetworkTypeDevice[0]++;break;
-                case 'R': TotalNetworkTypeDevice[1]++;break;
-                case 'E': TotalNetworkTypeDevice[2]++;break;
+                case 'C': 
+                            TotalNetworkTypeDevice[0]++;
+                            shm_location += COORDINATOR_SIZE;
+                            break;
+                case 'R': 
+                            TotalNetworkTypeDevice[1]++;
+                            shm_location += ROUTER_SIZE;
+                            break;
+                case 'E': 
+                            TotalNetworkTypeDevice[2]++;
+                            shm_location += END_DEVICE_SIZE;
+                            break;
             }
             while(ind < strlen(info))
             {
@@ -114,9 +139,18 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             
             switch(info[1]) //Counting each zigbee device type
             {
-                case 'C': TotalNetworkTypeDevice[0]++;break;
-                case 'R': TotalNetworkTypeDevice[1]++;break;
-                case 'E': TotalNetworkTypeDevice[2]++;break;
+                case 'C': 
+                            TotalNetworkTypeDevice[0]++;
+                            shm_location += COORDINATOR_SIZE;
+                            break;
+                case 'R': 
+                            TotalNetworkTypeDevice[1]++;
+                            shm_location += ROUTER_SIZE;
+                            break;
+                case 'E': 
+                            TotalNetworkTypeDevice[2]++;
+                            shm_location += END_DEVICE_SIZE;
+                            break;
             }
 
             while(count < lens)
@@ -195,7 +229,9 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             printf("%d ZC before me\n", BeforeNetworkTypeDevice[0]);
             printf("%d ZR before me\n", BeforeNetworkTypeDevice[1]);
             printf("%d ZED before me\n", BeforeNetworkTypeDevice[2]);
-    
+            int start;
+            for(start = 1; start <= GlobalVND.TotalDeviceNum ; start++)
+                printf("[%d] shm.addr= %d\n",  start, NODE_SHM_LOCATION[start]);
     fclose(pFile);
     return M2M_SUCCESS;
 }

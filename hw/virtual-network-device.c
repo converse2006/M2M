@@ -88,28 +88,19 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 case NETWORK_INIT: {
                             vnd->DeviceID = value;
                             M2M_DBG(level, GENERAL, "Network device initialization: Device ID = %d",vnd->DeviceID);
+
                             rc = m2m_topology_init(vnd->DeviceID);
 
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_mm_init();
-                            if(rc == M2M_SUCCESS)
-                            {
-                                int flag = 0;
-                                if(!strcmp(vnd->DeviceType, "ZC")) 
-                                    flag = 1; 
-                                if(!strcmp(vnd->DeviceType, "ZR")) 
-#ifdef ROUTER_RFD
-                                    flag = 0;
-#else
-                                    flag = 1;
-#endif
-                                    if(flag)
-                                    rc = m2m_route_processor_init();
-                            }
-                            /*if(rc == M2M_SUCCESS)
-                                rc = m2m_sbp_init();
 
                             if(rc == M2M_SUCCESS)
+                                rc = m2m_route_processor_init();
+
+                            if(rc == M2M_SUCCESS)
+                                rc = m2m_dbp_init();
+
+                            /*if(rc == M2M_SUCCESS)
                                 rc = 
                             */
 
@@ -117,12 +108,12 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 case NETWORK_SEND: {
                             net_send* packet;
                             packet = (uint32_t *)v2p(value, 0);
-#ifdef DEBUG_MSG
+#ifdef DEBUG_M2M
                             int ind;
                             M2M_DBG(level, GENERAL, "ReceiverID = %d",packet->ReceiverID);
                             M2M_DBG(level, GENERAL, "DataAddress = %x",(uint32_t *)v2p(packet->DataAddress, 0));
                             M2M_DBG(level, GENERAL, "DataSize = %d", packet->DataSize);
-                            char* location = (char *)v2p(packet->DataAddress, 0);
+                            char* location = (uint32_t *)v2p(packet->DataAddress, 0);
                             M2M_DBG(level, GENERAL, "Data Content =");
                             for(ind = 0; ind < packet->DataSize; ind++)
                                 fprintf(stderr, "%c",*( location + ind));
@@ -133,13 +124,14 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             net_recv* packet;
                             packet = (uint32_t *)v2p(value, 0);
                             char* destination;
-                            destination = (uint32_t)v2p(packet->DataAddress, 0) ;
+                            destination = (uint32_t *)v2p(packet->DataAddress, 0) ;
                             char message[]= "PasLab Data Receive"; //Testing data
                             strcpy(destination,message);
                         }break;
                 case NETWORK_EXIT: {
                             M2M_DBG(level, GENERAL, "Network device exit: Device ID = %d",vnd->DeviceID);
 
+                                rc = m2m_route_processor_exit();
                                 rc = m2m_mm_exit();
 
                             /*if(rc == M2M_SUCCESS)
