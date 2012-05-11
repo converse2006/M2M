@@ -18,7 +18,7 @@
 #include "goldfish_device.h" 
 
 #include "m2m.h"
-#include "hw/m2m_internal.h"
+#include "m2m_internal.h"
 /***************************
  *  Macro Define
  */
@@ -108,6 +108,7 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 case NETWORK_SEND: {
                             net_send* packet;
                             packet = (uint32_t *)v2p(value, 0);
+                            m2m_send(packet->DataAddress, packet->DataSize, packet->ReceiverID, NULL);
 #ifdef DEBUG_M2M
                             int ind;
                             M2M_DBG(level, GENERAL, "ReceiverID = %d",packet->ReceiverID);

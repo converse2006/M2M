@@ -18,13 +18,15 @@
 /*------------------------------------------------------------*/
 #define VND_BASE_ADDR 0xe0000000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
-#define ZR_FFD
+#define ROUTER_RFD
+
 typedef struct VND{
     uint32_t DeviceID;
     char DeviceType[3];
     int TotalDeviceNum;
     int Position[3];
     int Neighbors[8];
+    int NeighborType[8];
     int NeighborNum;
     long Shared_memory_address;
     uint64_t ND_power;
@@ -103,5 +105,8 @@ extern void network_exit();
 extern void network_send(int dest,char data[], int len, char type[]);
 
 extern void network_recv(int len, char type[]);
+
+
+
 
 #endif

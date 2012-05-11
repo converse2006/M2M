@@ -6,6 +6,7 @@ int TotalNetworkTypeDevice[3]= {0};
 int BeforeNetworkTypeDevice[3] = {0};
 unsigned int NODE_MAP[MAX_NODE_NUM][MAX_NODE_NUM];
 unsigned int NODE_LOCATION[MAX_NODE_NUM][3];
+char NODE_TYPE[MAX_NODE_NUM][4];
 long NODE_SHM_LOCATION[MAX_NODE_NUM] = {0};
 
 extern long shm_address;
@@ -62,14 +63,17 @@ static M2M_ERR_T node_infofetch(int DeviceID)
                 case 'C': 
                             TotalNetworkTypeDevice[0]++;
                             shm_location += COORDINATOR_SIZE;
+                            strcpy(NODE_TYPE[index], "ZC");
                             break;
                 case 'R': 
                             TotalNetworkTypeDevice[1]++;
                             shm_location += ROUTER_SIZE;
+                            strcpy(NODE_TYPE[index], "ZR");
                             break;
                 case 'E': 
                             TotalNetworkTypeDevice[2]++;
                             shm_location += END_DEVICE_SIZE;
+                            strcpy(NODE_TYPE[index], "ZED");
                             break;
             }
             while(ind < strlen(info))
@@ -142,14 +146,17 @@ static M2M_ERR_T node_infofetch(int DeviceID)
                 case 'C': 
                             TotalNetworkTypeDevice[0]++;
                             shm_location += COORDINATOR_SIZE;
+                            strcpy(NODE_TYPE[index], "ZC");
                             break;
                 case 'R': 
                             TotalNetworkTypeDevice[1]++;
                             shm_location += ROUTER_SIZE;
+                            strcpy(NODE_TYPE[index], "ZR");
                             break;
                 case 'E': 
                             TotalNetworkTypeDevice[2]++;
                             shm_location += END_DEVICE_SIZE;
+                            strcpy(NODE_TYPE[index], "ZED");
                             break;
             }
 
@@ -231,7 +238,7 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             printf("%d ZED before me\n", BeforeNetworkTypeDevice[2]);
             int start;
             for(start = 1; start <= GlobalVND.TotalDeviceNum ; start++)
-                printf("[%d] shm.addr= %d\n",  start, NODE_SHM_LOCATION[start]);
+                printf("[%d][%s] shm.addr= %d\n",  start, NODE_TYPE[start], NODE_SHM_LOCATION[start]);
     fclose(pFile);
     return M2M_SUCCESS;
 }

@@ -9,9 +9,7 @@ extern M2M_ERR_T m2m_mm_exit();
 extern M2M_ERR_T m2m_route_processor_init();
 extern M2M_ERR_T m2m_route_processor_exit();
 extern M2M_ERR_T m2m_dbp_init();
-
-
-
-
+extern M2M_ERR_T m2m_send(void *, int, int , int );
+extern M2M_ERR_T m2m_recv(void *, int, int , int );
 
 #endif

@@ -219,6 +219,7 @@ HW_SOURCES := \
 	m2m_mm.c \
 	m2m_route_processor.c \
 	m2m_dbp.c \
+	m2m_send_recv.c \
 
 LOCAL_SRC_FILES += $(HW_SOURCES:%=hw/%)
 
