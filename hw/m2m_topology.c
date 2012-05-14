@@ -46,8 +46,8 @@ static M2M_ERR_T node_infofetch(int DeviceID)
     long shm_location = 0;
     int index;
     GlobalVND.DeviceID = DeviceID;
-    pFile = fopen("m2m_app/topology.conf","r");
-    if(pFile == NULL) {fputs("File topology.conf open error",stderr); return M2M_ERROR; }
+    pFile = fopen("external/qemu-paslab/m2m_app/topology.conf","r");
+    if(pFile == NULL) {fputs("File topology.conf open error",stderr); exit(0); return M2M_ERROR; }
     fgets(info, 40, pFile); //Fetch TotalDevice Number
     GlobalVND.TotalDeviceNum = atoi(info);
     if(DeviceID > GlobalVND.TotalDeviceNum) {fputs("DeviceID larger than Device number!",stderr); return M2M_ERROR; }

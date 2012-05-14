@@ -1,3 +1,3 @@
 make clean
 make
-adb push vnd_api$1 /data
+adb push vnd_api05 /data

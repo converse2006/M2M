@@ -100,15 +100,15 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_dbp_init();
 
-                            /*if(rc == M2M_SUCCESS)
-                                rc = 
-                            */
+                            if(rc == M2M_SUCCESS)
+                                rc = m2m_send_recv_init();
+                            
 
                         }break;
                 case NETWORK_SEND: {
                             net_send* packet;
                             packet = (uint32_t *)v2p(value, 0);
-                            m2m_send(packet->DataAddress, packet->DataSize, packet->ReceiverID, NULL);
+                            m2m_send((uint32_t *)v2p(packet->DataAddress, 0), packet->DataSize, packet->ReceiverID, NULL);
 #ifdef DEBUG_M2M
                             int ind;
                             M2M_DBG(level, GENERAL, "ReceiverID = %d",packet->ReceiverID);
@@ -124,6 +124,7 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 case NETWORK_RECV: {
                             net_recv* packet;
                             packet = (uint32_t *)v2p(value, 0);
+                            m2m_recv((uint32_t *)v2p(packet->DataAddress, 0), NULL, NULL);
                             char* destination;
                             destination = (uint32_t *)v2p(packet->DataAddress, 0) ;
                             char message[]= "PasLab Data Receive"; //Testing data
@@ -135,10 +136,10 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                                 rc = m2m_route_processor_exit();
                                 rc = m2m_mm_exit();
 
-                            /*if(rc == M2M_SUCCESS)
-                                rc = m2m_sbp_init();
-
                             if(rc == M2M_SUCCESS)
+                                rc = m2m_dbp_exit();
+
+                            /*if(rc == M2M_SUCCESS)
                                 rc = 
                             */
 

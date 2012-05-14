@@ -7,13 +7,13 @@ CFLAGS=-static
 
 ANDROIDINC=-I /home/shocklink/MOEA/android/android-common-kernel/include
 
-switch_vpmu: network_device.c
-	$(CC) $(CFLAGS) network_device.c -o vnd_api04 $(INCLUDE)
+main: main.c
+	$(CC) $(CFLAGS) main.c -o vnd_api04 $(INCLUDE)
 
 clean:
 	rm vnd_api04
 
 android:
-	$(ANDROIDCC) $(CFLAGS) network_device.c -o vnd_api04.eabi $(ANDROIDINC)
+	$(ANDROIDCC) $(CFLAGS) main.c -o vnd_api04.eabi $(ANDROIDINC)
 
-default: switch_vpmu
+default: main

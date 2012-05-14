@@ -44,6 +44,7 @@ M2M_ERR_T m2m_mm_exit()
     int level = 2;
     int errno;
     struct shmid_ds *shmid_ds=NULL;
+    M2M_DBG(level, GENERAL, "In m2m_mm_exit() ...");
     //if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
         //M2M_DBG(level, GENERAL, "Coordinator in m2m_mm_exit");

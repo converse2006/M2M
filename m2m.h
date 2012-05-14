@@ -18,7 +18,7 @@
 /*------------------------------------------------------------*/
 #define VND_BASE_ADDR 0xe0000000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
-#define ROUTER_RFD
+#define ROUTER_RFDx
 
 typedef struct VND{
     uint32_t DeviceID;
@@ -26,7 +26,6 @@ typedef struct VND{
     int TotalDeviceNum;
     int Position[3];
     int Neighbors[8];
-    int NeighborType[8];
     int NeighborNum;
     long Shared_memory_address;
     uint64_t ND_power;
@@ -43,6 +42,7 @@ typedef enum
 {
     M2M_ERROR               =               0,
     M2M_SUCCESS             =               1,
+    M2M_TRANS_NOT_READY     =               8,
 }M2M_ERR_T;
 
 //Special Write 
@@ -91,7 +91,7 @@ typedef enum
 #include <sys/shm.h>
 #include <sys/types.h>
 
-#define TimingModel              0   // 0: fast 1: slow
+#define TimingModel              1   // 0: fast 1: slow
 
 
 #define MAX_NODE_NUM                 10
