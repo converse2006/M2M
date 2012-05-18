@@ -4,7 +4,7 @@
 
 #include "m2m.h" 
 
-#define x86_SHM_KEY                         1122
+#define x86_SHM_KEY                         4567
 //DATA BUFFER
 #define DATA_BUFFER_ENTRY_SIZE              4096  
 #define DATA_BUFFER_ENTRY_NUM               4
@@ -27,7 +27,8 @@
 
 //Zigbee device
 #define END_DEVICE_SIZE                     (TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE + HEADER_QUEUE_CONTRLFLAG)
-#define COORDINATOR_SIZE                    (( TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + END_DEVICE_SIZE)
+#define COORDINATOR_SIZE                    (( TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + END_DEVICE_SIZE + \
+                                            TOTAL_HEADER_QUEUE_SIZE)
 
 #ifdef ROUTER_RFD
 #define ROUTER_SIZE                         (NODE_MAX_LINKS * TOTAL_HEADER_QUEUE_SIZE)

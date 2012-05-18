@@ -13,6 +13,8 @@ extern long shm_address;
 extern VND GlobalVND;
 static M2M_ERR_T node_infofetch(int DeviceID);
 
+void show_m2m_position();
+void show_m2m_map();
 M2M_ERR_T m2m_topology_init(int DeviceID)
 {
     int rc = M2M_SUCCESS;
@@ -238,7 +240,7 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             printf("%d ZED before me\n", BeforeNetworkTypeDevice[2]);
             int start;
             for(start = 1; start <= GlobalVND.TotalDeviceNum ; start++)
-                printf("[%d][%s] shm.addr= %d\n",  start, NODE_TYPE[start], NODE_SHM_LOCATION[start]);
+                printf("[%d][%s] shm.addr= %ld\n",  start, NODE_TYPE[start], NODE_SHM_LOCATION[start]);
     fclose(pFile);
     return M2M_SUCCESS;
 }

@@ -19,6 +19,7 @@
 #define VND_BASE_ADDR 0xe0000000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
 #define ROUTER_RFDx
+#define MAX_TIME (-1)
 
 typedef struct VND{
     uint32_t DeviceID;
@@ -60,7 +61,7 @@ typedef enum
 #ifdef M2MDEBUG
 #include <stdio.h>
 #include <assert.h>
-#define M2M_DEBUG_LEVEL 2
+#define M2M_DEBUG_LEVEL 3
 
 #define M2M_DBG(level, CATEGORY, str, ...) \
     M2M_DEBUG_##CATEGORY(level, str, ##__VA_ARGS__)
