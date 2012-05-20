@@ -12,13 +12,13 @@ static long m2m_remote_HQ_meta;
 static long m2m_remote_HQe;*/
 
 extern long m2m_remote_meta_start[NODE_MAX_LINKS];
-extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS];
+extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_dbp_buffer_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_dbp_meta_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_hq_meta_start[NODE_MAX_LINKS + 2];
 extern long m2m_hq_buffer_start[NODE_MAX_LINKS + 2][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_localtime_start[MAX_NODE_NUM];
-extern long m2m_hq_conflag_start;
+extern long m2m_hq_conflag_start[MAX_NODE_NUM];
 
 static inline M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQe_t *msg_info,int scheme);
 static inline M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info);
@@ -28,7 +28,6 @@ extern uint64_t *m2m_localtime;
 
 M2M_ERR_T m2m_send_recv_init()
 {
-    long hq_meta_base,hq_buffer_base;
     volatile m2m_DB_meta_t *db_p = NULL;
     volatile m2m_HQ_meta_t *hq_p = NULL;
     int level = 2;
@@ -160,7 +159,7 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
     unsigned int next_hop_ID; 
 
     volatile m2m_HQ_meta_t *meta_ptr;
-    volatile m2m_HQ_cf_t *hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start; 
+    volatile m2m_HQ_cf_t *hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[GlobalVND.DeviceID]; 
     volatile long *remoteHQe_ptr = NULL;
     volatile int index = 0;
     int level = 2;
@@ -186,15 +185,23 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         //NOTE: ZED only connect to router/coordinator, so m2m_remote_meta_start[0] indicate that device shm addr
         meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_meta_start[0];
 
+        //Wait until next_hop device finish initialization
         uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
         //M2M_DBG(level, MESSAGE,"[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
-        if(*nexthop_localtime == 0) //alway check receiver device warmup or not
+        if(*nexthop_localtime == -1) //alway check receiver device warmup or not
         return M2M_TRANS_NOT_READY;
         M2M_DBG(level, MESSAGE, "[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
     }
     else
     {
         meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS + 1];
+
+        //Wait until next_hop device finish initialization
+        uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
+        //M2M_DBG(level, MESSAGE,"[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
+        if(*nexthop_localtime == -1) //alway check receiver device warmup or not
+        return M2M_TRANS_NOT_READY;
+        M2M_DBG(level, MESSAGE, "[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
     }
 
 
@@ -222,7 +229,7 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     if(!strcmp(GlobalVND.DeviceType, "ZED"))
                     {
                         remoteHQe_ptr = (long *)(uintptr_t)(m2m_remote_hq_buffer_start[count]+ meta_ptr->producer * HEADER_QUEUE_ENTRY_SIZE);
-                        M2M_DBG(level, MESSAGE, "[%d]remote HQe addr : %ld",GlobalVND.DeviceID, m2m_remote_hq_buffer_start[count]+ meta_ptr->producer * HEADER_QUEUE_ENTRY_SIZE);
+                        M2M_DBG(level, MESSAGE, "[%d]remote HQe addr : %ld",GlobalVND.DeviceID, m2m_remote_hq_buffer_start[count][meta_ptr->producer]);
                     }
                     else
                     {
@@ -234,22 +241,19 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     msg_info->EntryNum = -1; //-1 impile small size messag
                     msg_info->SendTime = get_vpmu_time();
                     msg_info->TransTime = transmission_latency( (m2m_HQe_t *)msg_info, next_hop_ID, "zigbee" );
-        M2M_DBG(level, MESSAGE, "[%d] Header packet:\n PacketSize = %d\n SenderID = %d\n ReceiverID = %d\n ForwardID = %d\n EntryNum = %d\n SendTime(ns) = %llu\n TransTime(ns) = %llu\n", GlobalVND.DeviceID, msg_info->PacketSize, msg_info->SenderID, msg_info->ReceiverID, msg_info->ForwardID, msg_info->EntryNum, msg_info->SendTime, msg_info->TransTime);
+        M2M_DBG(level, MESSAGE, "[%d] Header packet:\n PacketSize = %d\n SenderID = %d\n ReceiverID = %d\n ForwardID = %d\n EntryNum = %d\n SendTime(ns)  = %10llu\n TransTime(ns) = %10llu\n", GlobalVND.DeviceID, msg_info->PacketSize, msg_info->SenderID, msg_info->ReceiverID, msg_info->ForwardID, msg_info->EntryNum, msg_info->SendTime, msg_info->TransTime);
 
                     memcpy((void *)remoteHQe_ptr,(void *)msg_info,sizeof(m2m_HQe_t));
 
                     //copy real data to queue
                     if(!strcmp(GlobalVND.DeviceType, "ZED"))
-                    remoteHQe_ptr = (long *)(uintptr_t)(m2m_remote_hq_buffer_start[count] + (meta_ptr->producer * HEADER_QUEUE_ENTRY_SIZE) + sizeof(m2m_HQe_t));
+                    remoteHQe_ptr = (long *)(uintptr_t)(m2m_remote_hq_buffer_start[count][meta_ptr->producer] + sizeof(m2m_HQe_t));
                     else
-                    remoteHQe_ptr = (long *)(uintptr_t)(m2m_hq_buffer_start[NODE_MAX_LINKS + 1][meta_ptr->producer]);
+                    remoteHQe_ptr = (long *)(uintptr_t)(m2m_hq_buffer_start[NODE_MAX_LINKS + 1][meta_ptr->producer] + sizeof(m2m_HQe_t));
 
                     memcpy((void *)remoteHQe_ptr, (void *)msg, size);
                     
                     meta_ptr->producer = index;
-                    
-    M2M_DBG(level, MESSAGE, "[%d]After producer = %d",GlobalVND.DeviceID, meta_ptr->producer);
-    M2M_DBG(level, MESSAGE, "[%d]After consumer = %d",GlobalVND.DeviceID, meta_ptr->consumer);
 
                     //update control flag
                     hq_conflag_ptr->dataflag = 1;
@@ -260,10 +264,10 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     M2M_DBG(level, MESSAGE, "localclock = %llu",*m2m_localtime);
 
                     //wait for transtime
-                   // while(hq_conflag_ptr->dataflag == 1)
+                    while(hq_conflag_ptr->dataflag == 1)
                     {
                         //TODO if performace drop,there can optimze to get better
-                        //sleep() or whatever
+                        usleep(1);
                     }
 
                    //FIXME the clock update need to consider different network type
@@ -294,6 +298,7 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
         meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS];
 
     volatile m2m_HQe_t *localHQe_ptr = NULL;
+    volatile long      *packet_ptr;
     volatile int index = 0;
     int level = 2;
     
@@ -312,11 +317,22 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
         M2M_DBG(level, MESSAGE, "[%d]consumer = %d", GlobalVND.DeviceID, meta_ptr->consumer);
 
         if(!strcmp(GlobalVND.DeviceType, "ZED"))
-        localHQe_ptr = (m2m_HQe_t *)(uintptr_t) (m2m_hq_buffer_start[0][index]);
+        {
+            localHQe_ptr = (m2m_HQe_t *)(uintptr_t) (m2m_hq_buffer_start[0][index]);
+            packet_ptr = (long *)(uintptr_t)(m2m_hq_buffer_start[0][index] + sizeof(m2m_HQe_t));
+        }
         else
-        localHQe_ptr = (m2m_HQe_t *)(uintptr_t) (m2m_hq_buffer_start[NODE_MAX_LINKS][index]);
+        {
+            localHQe_ptr = (m2m_HQe_t *)(uintptr_t) (m2m_hq_buffer_start[NODE_MAX_LINKS][index]);
+            packet_ptr = (long *)(uintptr_t)(m2m_hq_buffer_start[NODE_MAX_LINKS][index] + sizeof(m2m_HQe_t));
+        }
         M2M_DBG(level, MESSAGE, "[%d] Header packet:\n PacketSize = %d\n SenderID = %d\n ReceiverID = %d\n EntryNum = %d\n SendTime = %llu\n TransTime = %llu\n", GlobalVND.DeviceID, localHQe_ptr->PacketSize, localHQe_ptr->SenderID, localHQe_ptr->ReceiverID, localHQe_ptr->EntryNum, localHQe_ptr->SendTime, localHQe_ptr->TransTime);
+
+
+        memcpy((void *)msg, (void *)packet_ptr, localHQe_ptr->PacketSize);
+        meta_ptr->consumer = (meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
     } 
-    
+
+
     return M2M_SUCCESS;
 }

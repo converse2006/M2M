@@ -23,7 +23,8 @@ M2M_ERR_T m2m_mm_init()
 
     SHM_SIZE = TotalNetworkTypeDevice[0] * COORDINATOR_SIZE + \
                TotalNetworkTypeDevice[1] * ROUTER_SIZE + \
-               TotalNetworkTypeDevice[2] * END_DEVICE_SIZE;   
+               TotalNetworkTypeDevice[2] * END_DEVICE_SIZE + \
+               MAX_NODE_NUM * sizeof(uint64_t);   
      
     M2M_DBG(level, GENERAL, "Total shared memory size = %llu", SHM_SIZE);
     // get the shared memory id
@@ -62,9 +63,8 @@ M2M_ERR_T m2m_mm_exit()
     int errno;
     struct shmid_ds *shmid_ds=NULL;
     M2M_DBG(level, GENERAL, "Enter m2m_mm_exit() ...");
-    //if(!strcmp(GlobalVND.DeviceType, "ZC"))
+    if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
-        //M2M_DBG(level, GENERAL, "Coordinator in m2m_mm_exit");
 
         // Detach the shared memory
         if((errno = shmdt((void *)shm_address)) == -1)
@@ -74,8 +74,7 @@ M2M_ERR_T m2m_mm_exit()
 
         printf("Remove the shared region\n");
     }
-    /*else
-        M2M_DBG(level, GENERAL, "Others in m2m_mm_exit");*/
+
     M2M_DBG(level, GENERAL, "Exit m2m_mm_exit() ...");
     return M2M_SUCCESS;
 }

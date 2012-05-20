@@ -50,7 +50,11 @@ static M2M_ERR_T node_infofetch(int DeviceID)
     GlobalVND.DeviceID = DeviceID;
     pFile = fopen("external/qemu-paslab/m2m_app/topology.conf","r");
     if(pFile == NULL) {fputs("File topology.conf open error",stderr); exit(0); return M2M_ERROR; }
-    fgets(info, 40, pFile); //Fetch TotalDevice Number
+    if(fgets(info, 40, pFile) == NULL) //Fetch TotalDevice Number
+    {
+        fprintf(stderr,"fgets error!\n");
+        exit(0);
+    }
     GlobalVND.TotalDeviceNum = atoi(info);
     if(DeviceID > GlobalVND.TotalDeviceNum) {fputs("DeviceID larger than Device number!",stderr); return M2M_ERROR; }
     for(index = 1; index <= GlobalVND.TotalDeviceNum; index++)
@@ -59,7 +63,12 @@ static M2M_ERR_T node_infofetch(int DeviceID)
         if(index != DeviceID)
         {
             int ind = 0, select = 0;
-            fgets(info, 40, pFile);
+            if(fgets(info, 40, pFile) == NULL)
+            {
+                fprintf(stderr,"fgets error!\n");
+                exit(0);
+            }
+
             switch(info[1]) //Counting each zigbee device type
             {
                 case 'C': 

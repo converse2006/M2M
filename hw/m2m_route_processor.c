@@ -22,11 +22,12 @@ extern unsigned int NODE_MAP[MAX_NODE_NUM][MAX_NODE_NUM];
 extern char NODE_TYPE[MAX_NODE_NUM][4];
 extern VND GlobalVND;
 extern long m2m_remote_meta_start[NODE_MAX_LINKS];
-extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS];
+extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_dbp_buffer_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_dbp_meta_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_hq_meta_start[NODE_MAX_LINKS + 2];
 extern long m2m_hq_buffer_start[NODE_MAX_LINKS + 2][HEADER_QUEUE_ENTRY_NUM];
+extern long m2m_hq_conflag_start[MAX_NODE_NUM];
 
 uint64_t time_sync();
 //-------------dijkstra------------------
@@ -44,7 +45,6 @@ long d[GRAPHSIZE]; /* d[i] is the length of the shortest path between the source
 int prev[GRAPHSIZE]; /* prev[i] is the node that comes right before i in the shortest path from the source to i*/
 extern long m2m_localtime_start[MAX_NODE_NUM];
 //-------------dijkstra------------------
-
 unsigned int route_discovery(int start, int end)
 { 
     dijkstra(start);
@@ -76,7 +76,7 @@ static void *m2m_enddevice_processor_create(void *args)
     while(1)
     {
                 *router_localtime_ptr = get_vpmu_time();            
-                fprintf(stderr, "local time = %llu\n",get_vpmu_time());
+                fprintf(stderr, "Device %d local time = %llu\n", GlobalVND.DeviceID, *router_localtime_ptr);
                 sleep(1);
     }
     pthread_exit(NULL);
@@ -147,12 +147,15 @@ static void *m2m_route_processor_create(void *args)
                 sleep(1);
             }
         }
+        
+        
         //Exist packet in header queue
         //FIXME MAX_TIME now equal to -1
         uint64_t packet_mintime = MAX_TIME;
         uint64_t packet_sendtime = MAX_TIME;
-        int packet_from = -1;
-        int packet_ind = -1;
+        unsigned int packet_from = -1;
+        unsigned int packet_next = -1;
+        unsigned int packet_ind = -1;
 
         int index;
         //Find minimum arrivel time  
@@ -176,75 +179,229 @@ static void *m2m_route_processor_create(void *args)
 
             if(meta_ptr->producer != meta_ptr->consumer)
             {
-                if(packet_mintime >= (packet_ptr->SendTime + packet_ptr->TransTime))
+                if(packet_mintime > (packet_ptr->SendTime + packet_ptr->TransTime) ||
+                  (packet_mintime == (packet_ptr->SendTime + packet_ptr->TransTime) 
+                  && packet_sendtime > packet_ptr->SendTime) )
                 {
-                    //if two packet arrival at same time, consider SendTime
-                    if((packet_mintime == (packet_ptr->SendTime + packet_ptr->TransTime) && 
-                        packet_sendtime > packet_ptr->SendTime) || 
-                        (packet_mintime != (packet_ptr->SendTime + packet_ptr->TransTime)))
-                    {
-                            packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
-                            packet_from = packet_ptr->ForwardID;
-                            packet_sendtime = packet_ptr->SendTime;
-                            packet_ind = index;
-                    }
+                    packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
+                    packet_from = packet_ptr->ForwardID;
+                    packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                    packet_sendtime = packet_ptr->SendTime;
+                    if(index == GlobalVND.NeighborNum)
+                        packet_ind = NODE_MAX_LINKS + 1;
+                    else
+                        packet_ind = index;
                 }
             }
         }
         
 
 
-            fprintf(stderr, "[%d]Current earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet Arrivel Time = %llu\n Packet SendTime = %llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_mintime, packet_sendtime);
+            fprintf(stderr, "[%d]Current earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet Arrivel Time = %10llu\n Packet SendTime     = %10llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_mintime, packet_sendtime);
 
         //wait other neighbor device(w/o next_hop_device_ID) local clock 
         //exceed (packet_mintime - one_hop_latency) 
         int deadline = 0,deadline_count = 0;
         int neigbor_device_deadline[NODE_MAX_LINKS + 2]={0};
         uint64_t *loc_time;
+
+        //NOTE: if search_num equal to 2,it mean one is sender and another is receiver
+        //based on algorithm, wait for nothing!
+        if(search_num > 2) 
         while(!deadline)
         {
             for(index = 0; index < search_num; index++)
             {
-                if(index == GlobalVND.NeighborNum)
+                //Device itself(ZC/ZR = ZED + Routing thread)
+                if(index == GlobalVND.NeighborNum )
                 {
-                    if(neigbor_device_deadline[NODE_MAX_LINKS + 1] != 1)
+                    //Check header queue due to coming header deliver time may earily than packet_mintime
+                    meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS + 1];
+                    if(meta_ptr->producer != meta_ptr->consumer)
+                    {
+                        //if exist earily than packet_mintime, reset deadline
+                        packet_ptr = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[NODE_MAX_LINKS + 1][meta_ptr->consumer];
+                        if(packet_mintime > (packet_ptr->SendTime + packet_ptr->TransTime) ||
+                           (packet_mintime == (packet_ptr->SendTime + packet_ptr->TransTime) 
+                            && packet_sendtime > packet_ptr->SendTime) )
+                        {
+                            //fprintf(stderr, "EXIST MORE EARILY BIRD %d!!\n",GlobalVND.DeviceID);
+                            int i;
+                            for(i = 0; i < NODE_MAX_LINKS + 2; i++)
+                                neigbor_device_deadline[i] = 0;
+                            deadline_count = 0;
+
+                            packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
+                            packet_from = packet_ptr->ForwardID;
+                            packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            packet_sendtime = packet_ptr->SendTime;
+                            packet_ind = NODE_MAX_LINKS + 1;
+                        }
+                    }
+
+                    //if not,check device local clock 
+                    if(neigbor_device_deadline[NODE_MAX_LINKS + 1] != 1 && 
+                       packet_from != GlobalVND.DeviceID && packet_next != GlobalVND.DeviceID)
                     {
                         loc_time = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
                         fprintf(stderr, "Device%d local clock = %llu\n ", GlobalVND.DeviceID, *loc_time);
                         sleep(1);
-                        if(packet_mintime <= *loc_time)
+                        if(packet_mintime <= *loc_time && *loc_time != MAX_TIME)
                         {
                             neigbor_device_deadline[NODE_MAX_LINKS + 1] = 1;
                             deadline_count++;
-                            fprintf(stderr, "Device%d local clock EXCEED!!\n ", GlobalVND.DeviceID, *loc_time);
+                            fprintf(stderr, "Device%d local clock EXCEED!!\n ", GlobalVND.DeviceID);
                         }
                     }
                 }
                 else
                 {
-                    if(neigbor_device_deadline[index] != 1)
+                    //Check header queue due to coming header deliver time may earily than packet_mintime
+                    meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[index];
+                    if(meta_ptr->producer != meta_ptr->consumer)
+                    {
+                        //if exist earily than packet_mintime, reset deadline
+                        packet_ptr = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[index][meta_ptr->consumer];
+                        if(packet_mintime > (packet_ptr->SendTime + packet_ptr->TransTime) ||
+                           (packet_mintime == (packet_ptr->SendTime + packet_ptr->TransTime) 
+                            && packet_sendtime > packet_ptr->SendTime) )
+                        {
+                            //fprintf(stderr, "EXIST MORE EARILY BIRD %d!!\n",index);
+                            int i;
+                            for(i = 0; i < NODE_MAX_LINKS + 2; i++)
+                                neigbor_device_deadline[i] = 0;
+                            deadline_count = 0;
+
+                            packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
+                            packet_from = packet_ptr->ForwardID;
+                            packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            packet_sendtime = packet_ptr->SendTime;
+                            packet_ind = index;
+                        }
+                    }
+
+                    //if not,check device local clock 
+                    if(neigbor_device_deadline[index] != 1 && 
+                       packet_from != GlobalVND.Neighbors[index] && packet_next != GlobalVND.Neighbors[index])
                     {
                         loc_time = (uint64_t *)m2m_localtime_start[GlobalVND.Neighbors[index]];
-                        fprintf(stderr, "Device%d local clock = %llu\n ", GlobalVND.Neighbors[index], *loc_time);
+                        fprintf(stderr, "Device %d local clock = %llu\n ", GlobalVND.Neighbors[index], *loc_time);
                         sleep(1);
-                        if(packet_mintime /*- one_hop_latency(GlobalVND.Neighbors[index])*/ <= *loc_time)
+                        if(packet_mintime /*- one_hop_latency(GlobalVND.Neighbors[index])*/ <= *loc_time && *loc_time != MAX_TIME)
                         {
                             neigbor_device_deadline[index] = 1;
                             deadline_count++;
-                            fprintf(stderr, "Device%d local clock EXCEED!!\n ", GlobalVND.DeviceID, *loc_time);
+                            fprintf(stderr, "Device %d local clock EXCEED!!\n ", GlobalVND.Neighbors[index]);
                         }
                     }
 
                 }
             }
-            *router_localtime_ptr = get_vpmu_time();            
-            if(deadline_count == search_num)
+            //FIXME update local time  need more better way
+            *router_localtime_ptr = time_sync();            
+            if(deadline_count == search_num - 2)
                 deadline = 1;
         }
 
+        //Wait until receiver finish initialization
+        uint64_t *nextdev_time = (uint64_t *)m2m_localtime_start[packet_next];
+    fprintf(stderr, "Before receiver finish initialization(Device %d local clock =%llu)\n",packet_next,*nextdev_time);
+        while(*nextdev_time == MAX_TIME)
+            usleep(1);
+    fprintf(stderr, "After receiver finish initialization(Device %d local clock = %llu)\n",packet_next,*nextdev_time);
 
-            fprintf(stderr, "[%d]packet_mintime > *router_localtime_ptr = %llu\n ", GlobalVND.DeviceID, *router_localtime_ptr);
-            while(1);
+        M2M_DBG(level, GENERAL, "Routing Processor forward packet from %d -> %d",packet_from ,packet_next);
+        int count = 0;
+        int find_flag = 0;
+        m2m_HQ_meta_t   *FROM_meta_ptr;
+        m2m_HQe_t       *FROM_packet;
+        long            *FROM_packet_ptr;
+        m2m_HQ_meta_t   *TO_meta_ptr;
+        long            *TO_packet_ptr;
+        int TO_Pind;
+
+        if(packet_next == GlobalVND.DeviceID)
+        {
+
+            FROM_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[packet_ind];
+            FROM_packet_ptr = (long *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
+            FROM_packet = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
+
+            TO_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS];
+            TO_packet_ptr = (long *)(uintptr_t)m2m_hq_buffer_start[NODE_MAX_LINKS][TO_meta_ptr->producer];
+
+            //Check receiver header queue is full or not
+            TO_Pind = (TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM; 
+            while(TO_Pind == TO_meta_ptr->consumer);
+
+            //NOTE: Due to packet send to device itself,just forward packet without any packet modification
+
+            memcpy((void *)TO_packet_ptr,(void *)FROM_packet_ptr,sizeof(m2m_HQe_t) + FROM_packet->PacketSize);
+            FROM_meta_ptr->consumer = (FROM_meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
+            TO_meta_ptr->producer   = (TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM;
+
+            //update sender/receiver local time
+            m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
+            hq_conflag->transtime = FROM_packet->SendTime + FROM_packet->TransTime;
+            hq_conflag->dataflag = 0;
+
+        }
+        else
+        {
+            while(!find_flag && count < GlobalVND.TotalDeviceNum)
+            {
+                if( GlobalVND.Neighbors[count] == packet_next)
+                {
+                    find_flag = 1;
+                    break;
+                }
+                count++;
+            }
+            fprintf(stderr, "GlobalVND.Neighbors[%d] == packet_next\n", count);
+            if(flag)
+            { //FIXME Error happen,coding handle process
+                fprintf(stderr, "[m2m_post_remote_msg]: Not found receiverID in neighbor list\n");
+                exit(0);
+            }
+            
+            FROM_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[packet_ind];
+            FROM_packet_ptr = (long *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
+            FROM_packet = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
+
+            TO_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_meta_start[count];
+            TO_packet_ptr = (long *)(uintptr_t)m2m_remote_hq_buffer_start[count][TO_meta_ptr->producer];
+          
+            //update packet header
+            FROM_packet->ForwardID = GlobalVND.DeviceID;
+            if(*router_localtime_ptr > (FROM_packet->SendTime + FROM_packet->TransTime))
+            {
+                fprintf(stderr, "*router_localtime_ptr > (FROM_packet->SendTime + FROM_packet->TransTime)\n");
+                FROM_packet-> SendTime = *router_localtime_ptr;
+            }
+            else
+            {
+                FROM_packet-> SendTime = FROM_packet-> SendTime + FROM_packet->TransTime;
+                *router_localtime_ptr = FROM_packet-> SendTime + FROM_packet->TransTime;
+            }
+
+            //Check receiver header queue is full or not
+            TO_Pind = (TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM; 
+            while(TO_Pind == TO_meta_ptr->consumer);
+
+            memcpy((void *)TO_packet_ptr,(void *)FROM_packet_ptr,(sizeof(m2m_HQe_t) + FROM_packet->PacketSize));
+            FROM_meta_ptr->consumer = (FROM_meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
+            TO_meta_ptr->producer   = (TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM;
+
+            //update sender/receiver local time
+            if(FROM_packet->ReceiverID == packet_next)
+            {
+                m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
+                hq_conflag->transtime = FROM_packet->SendTime + FROM_packet->TransTime;
+                hq_conflag->dataflag = 0;
+            }
+        }
+            M2M_DBG(level, MESSAGE, "PACKET TO/FROM:\n TO_packet_addr = %ld\n FROM_packet_addr = %ld\n Packet Size = %d\n, SendTime = %llu\n TransTime = %llu\n", TO_packet_ptr, FROM_packet_ptr, FROM_packet->PacketSize, FROM_packet->SendTime, FROM_packet->TransTime);
+
 
 
 
@@ -256,31 +413,10 @@ static void *m2m_route_processor_create(void *args)
 M2M_ERR_T m2m_route_processor_init()
 {
     long route_process_location;
-    long hq_meta_base[NODE_MAX_LINKS];
-    long hq_data_base[NODE_MAX_LINKS];
     int level = 2;
      
     M2M_DBG(level, GENERAL, "Enter m2m_router_processor_init() ...");
-    m2m_HQ_meta_t *p = NULL;
     M2M_ERR_T rc = M2M_SUCCESS;
-    //NODE_SHM_LOCATION + base shm address
-/*    int ind;
-
-    //Note: "(MAX_NODE_NUM * sizeof(uint64_t)" is shared memory of localtime(ns)
-    for( ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
-    {
-        //NOTE: MAX_NODE_NUM alway equal to (totoal node number + 1) due to ID start from 1
-        NODE_SHM_LOCATION[ind] += (shm_address_location + (MAX_NODE_NUM * sizeof(uint64_t)));
-        fprintf(stderr, "NODE_SHM_LOCATION[%d] = %ld\n", ind, NODE_SHM_LOCATION[ind]);
-        m2m_localtime_start[ind] = shm_address_location + ind * sizeof(uint64_t);
-    }*/
-
-    //update local clock
-    /*m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
-    if(strcmp(GlobalVND.DeviceType,"ZR"))
-        *m2m_localtime = GlobalVPMU.ticks;
-    else
-        *m2m_localtime = 0;*/
 
     //Calculate device metadata addr
     device_shm_location = NODE_SHM_LOCATION[GlobalVND.DeviceID];
@@ -296,17 +432,6 @@ M2M_ERR_T m2m_route_processor_init()
     {
         route_process_location = device_shm_location;
         int ind;
-        /*for(ind = 0; ind < NODE_MAX_LINKS ; ind++)
-        {
-            hq_meta_base[ind] = route_process_location + HEADER_QUEUE_SIZE * NODE_MAX_LINKS \
-                                + ind * sizeof(unsigned int) * 2;
-            hq_data_base [ind] = route_process_location + ind * HEADER_QUEUE_SIZE;
-            p = (m2m_HQ_meta_t *)(uintptr_t)hq_meta_base[ind];
-            p->producer = 0;
-            p->consumer = 0;
-            //M2M_DBG(level, GENERAL, "hq_meta_base[%d] = %d ", ind, hq_meta_base[ind]);
-            //M2M_DBG(level, GENERAL, "hq_data_base[%d] = %d ", ind, hq_data_base[ind]);
-        }*/
 
         //count neighbor list
         //if(strcmp(GlobalVND.DeviceType,"ZC")) //ZC always sync with itself clock

@@ -103,11 +103,11 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                                 rc = m2m_route_processor_init();
 
                             if(rc == M2M_SUCCESS)
-                                rc = m2m_time_init();
-
-                            if(rc == M2M_SUCCESS)
                                 rc = m2m_send_recv_init();
                             
+                            if(rc == M2M_SUCCESS)
+                                rc = m2m_time_init();
+
 
                             M2M_DBG(level, GENERAL, "Exit NETWORK_INIT ...");
                         }break;
@@ -134,10 +134,6 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             net_recv* packet;
                             packet = (uint32_t *)v2p(value, 0);
                             m2m_recv((uint32_t *)v2p(packet->DataAddress, 0), NULL, NULL);
-                            char* destination;
-                            destination = (uint32_t *)v2p(packet->DataAddress, 0) ;
-                            char message[]= "PasLab Data Receive"; //Testing data
-                            strcpy(destination,message);
                             M2M_DBG(level, GENERAL, "Exit NETWORK_RECV ...");
                         }break;
                 case NETWORK_EXIT: {

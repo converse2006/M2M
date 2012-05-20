@@ -24,13 +24,13 @@ M2M_ERR_T m2m_time_init()
         for(ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
         {
             m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
-            *m2m_localtime = 0;
+            *m2m_localtime = -1;
         }
     }
 
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     if(strcmp(GlobalVND.DeviceType,"ZR"))
-        *m2m_localtime = GlobalVPMU.ticks;
+        *m2m_localtime = get_vpmu_time();
     else
         *m2m_localtime = time_sync();
     M2M_DBG(level, GENERAL, "[%d] m2m_localtime = %llu",GlobalVND.DeviceID, *m2m_localtime);
@@ -41,7 +41,7 @@ M2M_ERR_T m2m_time_exit()
 {
     int level = 2;
     M2M_DBG(level, GENERAL, "In m2m_time_exit() ...");
-    *m2m_localtime = 0;
+    *m2m_localtime = MAX_TIME;
     return M2M_SUCCESS;
 }
 
@@ -58,12 +58,14 @@ uint64_t time_sync()
     int ind;
     uint64_t tmp_time = MAX_TIME;
     //sync time
+    if(!strcmp(GlobalVND.DeviceType, "ZR"))
+    {
         if(neighbor_end)
         {
             for(ind = 0; ind < end_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
-                if(tmp_time > *nt_ptr)
+                if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
                     tmp_time = *nt_ptr;
             }
         }
@@ -72,11 +74,17 @@ uint64_t time_sync()
             for(ind = 0; ind < router_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_router_list[ind]];
-                if(tmp_time > *nt_ptr)
+                if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
                     tmp_time = *nt_ptr;
             }
         }
-    return tmp_time;
+        if(tmp_time == MAX_TIME)
+            return 0;
+        else
+            return tmp_time;
+    }
+    else
+        return get_vpmu_time();
 }
 
 double transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, char* networktype )

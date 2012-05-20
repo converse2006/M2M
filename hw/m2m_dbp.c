@@ -15,10 +15,10 @@ long m2m_dbp_buffer_start[DATA_BUFFER_ENTRY_NUM];
 long m2m_dbp_meta_start[DATA_BUFFER_ENTRY_NUM];
 long m2m_hq_meta_start[NODE_MAX_LINKS + 2];
 long m2m_hq_buffer_start[NODE_MAX_LINKS + 2][HEADER_QUEUE_ENTRY_NUM];
-long m2m_hq_conflag_start;
+long m2m_hq_conflag_start[MAX_NODE_NUM];
 
 long m2m_remote_meta_start[NODE_MAX_LINKS];
-long m2m_remote_hq_buffer_start[NODE_MAX_LINKS];
+long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];
 M2M_ERR_T m2m_copy_to_dbp(void *data, int sizeb,int DeviceID)
 {
     volatile m2m_HQ_meta_t *local_meta_ptr = NULL; 
@@ -43,6 +43,21 @@ M2M_ERR_T m2m_dbp_init()
         NODE_SHM_LOCATION[ind] += (shm_address_location + (MAX_NODE_NUM * sizeof(uint64_t)));
         fprintf(stderr, "NODE_SHM_LOCATION[%d] = %ld\n", ind, NODE_SHM_LOCATION[ind]);
         m2m_localtime_start[ind] = shm_address_location + ind * sizeof(uint64_t);
+        fprintf(stderr, "m2m_localtime_start[%d] = %ld\n", ind, m2m_localtime_start[ind]);
+
+        if(!strcmp(NODE_TYPE[ind], "ZED"))
+            m2m_hq_conflag_start[ind] = NODE_SHM_LOCATION[ind] + TOTAL_HEADER_QUEUE_SIZE;
+        else if(!strcmp(NODE_TYPE[ind], "ZR")) 
+        {
+#ifndef ROUTER_RFD
+            m2m_hq_conflag_start[ind] = NODE_SHM_LOCATION[ind] + ((NODE_MAX_LINKS + 2) * TOTAL_HEADER_QUEUE_SIZE) + \
+                                        TOTAL_DATA_BUFFER_SIZE;
+#endif
+        }
+        else if(!strcmp(NODE_TYPE[ind], "ZC")) 
+            m2m_hq_conflag_start[ind] = NODE_SHM_LOCATION[ind] + ((NODE_MAX_LINKS + 2) * TOTAL_HEADER_QUEUE_SIZE) + \
+                                        TOTAL_DATA_BUFFER_SIZE;
+        fprintf(stderr, "m2m_hq_conflag_start[%d] = %ld\n", ind, m2m_hq_conflag_start[ind]);
     }
 
     GlobalVND.Shared_memory_address = NODE_SHM_LOCATION[GlobalVND.DeviceID];
@@ -57,7 +72,7 @@ M2M_ERR_T m2m_dbp_init()
         }
             m2m_hq_meta_start[0]   = HQ_meta_base ;  
         
-        m2m_hq_conflag_start = GlobalVND.Shared_memory_address + TOTAL_HEADER_QUEUE_SIZE;
+        m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + TOTAL_HEADER_QUEUE_SIZE;
         DB_data_base = GlobalVND.Shared_memory_address + (TOTAL_HEADER_QUEUE_SIZE) + HEADER_QUEUE_CONTRLFLAG;
         DB_meta_base = GlobalVND.Shared_memory_address + (TOTAL_HEADER_QUEUE_SIZE) + HEADER_QUEUE_CONTRLFLAG +(DATA_BUFFER_SIZE);
         for(index = 0; index < DATA_BUFFER_ENTRY_NUM; index++)
@@ -108,7 +123,7 @@ M2M_ERR_T m2m_dbp_init()
                           + HEADER_QUEUE_SIZE; 
 
             //For small size transmission
-            m2m_hq_conflag_start = GlobalVND.Shared_memory_address + \
+            m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + \
                         (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE *2;
 #endif
         }
@@ -139,7 +154,7 @@ M2M_ERR_T m2m_dbp_init()
                           + HEADER_QUEUE_SIZE; 
 
             //For small size transmission
-            m2m_hq_conflag_start = GlobalVND.Shared_memory_address + \
+            m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + \
                         (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE *2;
         }
     }
@@ -159,19 +174,23 @@ M2M_ERR_T m2m_dbp_init()
 
             if(!strcmp(NODE_TYPE[GlobalVND.Neighbors[index]], "ZED"))
             {
-                m2m_remote_hq_buffer_start[index] = remote_location;
+                for(index_ent = 0; index_ent < HEADER_QUEUE_ENTRY_NUM; index_ent++)
+                m2m_remote_hq_buffer_start[index][index_ent] = remote_location +(index_ent * HEADER_QUEUE_ENTRY_SIZE );
                 m2m_remote_meta_start[index] = remote_location + HEADER_QUEUE_SIZE ;
             }
             else
             {
-                m2m_remote_hq_buffer_start[index] = remote_location + (HEADER_QUEUE_SIZE * count);
+                for(index_ent = 0; index_ent < HEADER_QUEUE_ENTRY_NUM; index_ent++)
+                m2m_remote_hq_buffer_start[index][index_ent] = remote_location + (HEADER_QUEUE_SIZE * count) \
+                                                               + (index_ent * HEADER_QUEUE_ENTRY_SIZE);
                 m2m_remote_meta_start[index] = remote_location + (HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + \
                                               (HEADER_QUEUE_METADATA_ENTRY_SIZE * count);
             }
-            fprintf(stderr, "m2m_remote_hq_buffer_start[%d] = %ld\n",index \
-                                                                ,m2m_remote_hq_buffer_start[index] /*- remote_location*/);
+            for(index_ent = 0; index_ent < HEADER_QUEUE_ENTRY_NUM; index_ent++)
+                fprintf(stderr, "m2m_remote_hq_buffer_start[%d][%d] = %ld\n",index ,index_ent,\
+                                                    m2m_remote_hq_buffer_start[index][index_ent] /*- remote_location*/);
             fprintf(stderr, "m2m_remote_meta_start[%d] = %ld\n",index \
-                                                                ,m2m_remote_meta_start[index] /*- remote_location*/);
+                                                               ,m2m_remote_meta_start[index] /*- remote_location*/);
         }
 //#ifdef  M2MDEBUG
         //[DEBUG] Display shared memory layout (w/o base offset (GlobalVND.Shared_memory_address))
@@ -184,7 +203,7 @@ M2M_ERR_T m2m_dbp_init()
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]    = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                                                     0, m2m_hq_meta_start[0] - GlobalVND.Shared_memory_address);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start    = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start - GlobalVND.Shared_memory_address);
+                                        m2m_hq_conflag_start[GlobalVND.DeviceID] - GlobalVND.Shared_memory_address);
         for(index = 0; index < DATA_BUFFER_ENTRY_NUM; index++)
             fprintf(stderr, "[%s][%d] m2m_dbp_buffer_start[%d] = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                                                  index, m2m_dbp_buffer_start[index] - GlobalVND.Shared_memory_address);
@@ -225,7 +244,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                   NODE_MAX_LINKS + 1 , m2m_hq_meta_start[NODE_MAX_LINKS + 1] - GlobalVND.Shared_memory_address);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start - GlobalVND.Shared_memory_address);
+                                            m2m_hq_conflag_start[GlobalVND.DeviceID] - GlobalVND.Shared_memory_address);
 #endif
         }
         else
@@ -247,7 +266,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                   NODE_MAX_LINKS + 1 , m2m_hq_meta_start[NODE_MAX_LINKS + 1] - GlobalVND.Shared_memory_address);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start - GlobalVND.Shared_memory_address);
+                                            m2m_hq_conflag_start[GlobalVND.DeviceID] - GlobalVND.Shared_memory_address);
         }
     }*/
     
@@ -261,7 +280,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]    = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                                                     0, m2m_hq_meta_start[0]);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start    = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start);
+                                                         m2m_hq_conflag_start[GlobalVND.DeviceID]);
         for(index = 0; index < DATA_BUFFER_ENTRY_NUM; index++)
             fprintf(stderr, "[%s][%d] m2m_dbp_buffer_start[%d] = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                                                  index, m2m_dbp_buffer_start[index]);
@@ -302,7 +321,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                   NODE_MAX_LINKS + 1, m2m_hq_meta_start[NODE_MAX_LINKS + 1]);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start);
+                                                         m2m_hq_conflag_start[GlobalVND.DeviceID]);
 #endif
         }
         else
@@ -324,7 +343,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
             fprintf(stderr, "[%s][%d] m2m_hq_meta_start[%d]      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID, \
                   NODE_MAX_LINKS + 1, m2m_hq_meta_start[NODE_MAX_LINKS + 1]);
             fprintf(stderr, "[%s][%d] m2m_hq_conflag_start      = %ld \n", GlobalVND.DeviceType, GlobalVND.DeviceID,
-                                                         m2m_hq_conflag_start);
+                                                         m2m_hq_conflag_start[GlobalVND.DeviceID]);
         }
     }
     
