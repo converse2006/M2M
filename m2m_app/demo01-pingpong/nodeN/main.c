@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
     }
     else
         id = atoi(argv[1]);
-    char send_data[] = "I am node one!! \0";
+    char send_data[] = "I am node three!! \0";
     char recv_data[100] = "";
     int ret;
     ret = Network_Init(id, "Zigbee");
@@ -17,13 +17,14 @@ int main(int argc, char* argv[])
     switch(id)
     {
         case 1:
-                printf("Sending ... [%s]\n",send_data);
-                Network_Send(3, send_data, "Zigbee");
-                break;
-        case 3:
                 printf("Receiving ... \n");
                 Network_Recv(recv_data, "Zigbee");
                 printf("Receive data: %s\n",recv_data);
+                break;
+        case 3:
+                printf("Sending ... [%s]\n",send_data);
+                Network_Send(1, send_data, "Zigbee");
+                break;
         default:
                 break;
     }

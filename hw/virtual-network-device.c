@@ -95,7 +95,6 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_mm_init();
 
-
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_dbp_init();
 
@@ -107,7 +106,6 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_time_init();
-
 
                             M2M_DBG(level, GENERAL, "Exit NETWORK_INIT ...");
                         }break;
@@ -140,7 +138,7 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             M2M_DBG(level, GENERAL, "Enter NETWORK_EXIT ...");
                             M2M_DBG(level, GENERAL, "Network device exit: Device ID = %d",vnd->DeviceID);
 
-                                rc = m2m_route_processor_exit();
+                            rc = m2m_route_processor_exit();
 
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_time_exit();

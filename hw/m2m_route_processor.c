@@ -75,7 +75,8 @@ static void *m2m_enddevice_processor_create(void *args)
     router_localtime_ptr =(uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     while(1)
     {
-                *router_localtime_ptr = get_vpmu_time();            
+                if(*router_localtime_ptr < get_vpmu_time())
+                    *router_localtime_ptr = get_vpmu_time();
                 fprintf(stderr, "Device %d local time = %llu\n", GlobalVND.DeviceID, *router_localtime_ptr);
                 sleep(1);
     }
@@ -185,7 +186,10 @@ static void *m2m_route_processor_create(void *args)
                 {
                     packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
                     packet_from = packet_ptr->ForwardID;
-                    packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                    if(GlobalVND.DeviceID != packet_ptr->ReceiverID)
+                        packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                    else
+                        packet_next = GlobalVND.DeviceID;
                     packet_sendtime = packet_ptr->SendTime;
                     if(index == GlobalVND.NeighborNum)
                         packet_ind = NODE_MAX_LINKS + 1;
@@ -197,7 +201,7 @@ static void *m2m_route_processor_create(void *args)
         
 
 
-            fprintf(stderr, "[%d]Current earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet Arrivel Time = %10llu\n Packet SendTime     = %10llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_mintime, packet_sendtime);
+            fprintf(stderr, "[%d]Current earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet_To = %d\n Packet Arrivel Time = %10llu\n Packet SendTime     = %10llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_next, packet_mintime, packet_sendtime);
 
         //wait other neighbor device(w/o next_hop_device_ID) local clock 
         //exceed (packet_mintime - one_hop_latency) 
@@ -233,7 +237,10 @@ static void *m2m_route_processor_create(void *args)
 
                             packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
                             packet_from = packet_ptr->ForwardID;
-                            packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            if(GlobalVND.DeviceID != packet_ptr->ReceiverID)
+                                packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            else
+                                packet_next = GlobalVND.DeviceID;
                             packet_sendtime = packet_ptr->SendTime;
                             packet_ind = NODE_MAX_LINKS + 1;
                         }
@@ -274,7 +281,10 @@ static void *m2m_route_processor_create(void *args)
 
                             packet_mintime = packet_ptr->SendTime + packet_ptr->TransTime;
                             packet_from = packet_ptr->ForwardID;
-                            packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            if(GlobalVND.DeviceID != packet_ptr->ReceiverID)
+                                packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
+                            else
+                                packet_next = GlobalVND.DeviceID;
                             packet_sendtime = packet_ptr->SendTime;
                             packet_ind = index;
                         }
@@ -304,6 +314,7 @@ static void *m2m_route_processor_create(void *args)
         }
 
         //Wait until receiver finish initialization
+    fprintf(stderr, "Waiting receiver local time achieve!!!\n");
         uint64_t *nextdev_time = (uint64_t *)m2m_localtime_start[packet_next];
     fprintf(stderr, "Before receiver finish initialization(Device %d local clock =%llu)\n",packet_next,*nextdev_time);
         while(*nextdev_time == MAX_TIME)
@@ -355,7 +366,8 @@ static void *m2m_route_processor_create(void *args)
                     find_flag = 1;
                     break;
                 }
-                count++;
+                else
+                    count++;
             }
             fprintf(stderr, "GlobalVND.Neighbors[%d] == packet_next\n", count);
             if(flag)

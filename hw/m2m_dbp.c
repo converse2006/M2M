@@ -175,7 +175,8 @@ M2M_ERR_T m2m_dbp_init()
             if(!strcmp(NODE_TYPE[GlobalVND.Neighbors[index]], "ZED"))
             {
                 for(index_ent = 0; index_ent < HEADER_QUEUE_ENTRY_NUM; index_ent++)
-                m2m_remote_hq_buffer_start[index][index_ent] = remote_location +(index_ent * HEADER_QUEUE_ENTRY_SIZE );
+                m2m_remote_hq_buffer_start[index][index_ent] = remote_location + /*(HEADER_QUEUE_SIZE * count)*/ + \
+                                                               (index_ent * HEADER_QUEUE_ENTRY_SIZE );
                 m2m_remote_meta_start[index] = remote_location + HEADER_QUEUE_SIZE ;
             }
             else
