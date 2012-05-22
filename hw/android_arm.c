@@ -137,6 +137,7 @@ static void android_arm_init_(ram_addr_t ram_size,
         vnd_init(vn_device->base, goldfish_pic[vn_device->irq]);
        
 #endif
+
     for(i = 0; i < MAX_NICS; i++) {
         if (nd_table[i].vlan) {
             if (nd_table[i].model == NULL

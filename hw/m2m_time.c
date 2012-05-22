@@ -41,7 +41,7 @@ M2M_ERR_T m2m_time_exit()
 {
     int level = 2;
     M2M_DBG(level, GENERAL, "In m2m_time_exit() ...");
-    *m2m_localtime = MAX_TIME;
+    *m2m_localtime = MAX_TIME - 1;
     return M2M_SUCCESS;
 }
 
@@ -170,6 +170,6 @@ double transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, char
 static inline int ack_retry(int node_from, int node_to)
 {
     int retry_num = rand()%4; //worst case: 3
-    printf("%d->%d ack retry num = %d\n", node_from, node_to, retry_num);
+    //printf("%d->%d ack retry num = %d\n", node_from, node_to, retry_num);
     return retry_num;
 }

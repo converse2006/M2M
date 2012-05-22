@@ -35,6 +35,7 @@ M2M_ERR_T m2m_mm_init()
     if((shm_address = shmat(shmid,NULL,0)) == (char *) -1) 
     {perror("shmat failed");    exit(-1);}
 
+
     shm_address_location = (long)shm_address;
     M2M_DBG(level, GENERAL,"shm_address_location = %ld \n", shm_address_location);
 
@@ -72,7 +73,6 @@ M2M_ERR_T m2m_mm_exit()
         if((errno = shmctl(shmid,IPC_RMID,shmid_ds)) == -1)
         {perror("shmctl failed");    exit(-1);}
 
-        printf("Remove the shared region\n");
     }
 
     M2M_DBG(level, GENERAL, "Exit m2m_mm_exit() ...");

@@ -9,31 +9,49 @@ int main(int argc, char* argv[])
     }
     else
         id = atoi(argv[1]);
-    char send_data[] = "I am node three!! \0";
+    char send_data[100] = "I am node three!!";
     char recv_data[100] = "";
     int ret;
     ret = Network_Init(id, "Zigbee");
-
+    int ind,times = 100;
     switch(id)
     {
         case 1:
-                printf("Receiving ... \n");
-                Network_Recv(recv_data, "Zigbee");
-                printf("Receive data: %s\n",recv_data);
+                for(ind = 0 ; ind < times; ind++)
+                {
+                    printf("[%d]Receiving ... \n",ind);
+                    Network_Recv(recv_data, "Zigbee");
+                    printf("[%d]Receive data: %s\n", ind, recv_data);
+                }
                 break;
         case 3:
-                printf("Sending ... [%s]\n",send_data);
-                Network_Send(1, send_data, "Zigbee");
+                for(ind = 0 ; ind < times; ind++)
+                {
+    /*                switch(ind)
+                    {
+                        case 0:strcat(send_data,"one");break;
+                        case 1:strcat(send_data,"two");break;
+                        case 2:strcat(send_data,"three");break;
+                        case 3:strcat(send_data,"four");break;
+                        case 4:strcat(send_data,"five");break;
+                    }*/
+                    printf("[%d]Sending ... [%s]\n", ind, send_data);
+                    Network_Send(1, send_data, "Zigbee");
+                }
                 break;
         default:
                 break;
     }
 
+    if(id == 2 || id == 1)
+    {
     int inp= 8;
     do{
     scanf("%d",&inp);
     }while(inp);
+    }
 
     ret = Network_Exit("Zigbee");
+    printf("Program finish!!\n");
     return 0;
 }

@@ -30,8 +30,15 @@ M2M_ERR_T m2m_send_recv_init()
 {
     volatile m2m_DB_meta_t *db_p = NULL;
     volatile m2m_HQ_meta_t *hq_p = NULL;
+    volatile m2m_HQ_cf_t *hq_conflag_ptr;
     int level = 2;
     M2M_DBG(level, GENERAL, "Enter m2m_send_recv_init() ...");
+
+    hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[GlobalVND.DeviceID];
+    hq_conflag_ptr->dataflag = 0;
+    hq_conflag_ptr->transtime = 0;
+
+
     //Data buffer metadata initialization
     if(!strcmp(GlobalVND.DeviceType,"ZR"))
     {
@@ -255,6 +262,10 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     
                     meta_ptr->producer = index;
 
+                    M2M_DBG(level, MESSAGE, "[%d]After producer = %d",GlobalVND.DeviceID, meta_ptr->producer);
+                    M2M_DBG(level, MESSAGE, "[%d]After consumer = %d",GlobalVND.DeviceID, meta_ptr->consumer);
+                    M2M_DBG(level, MESSAGE, "[%d]Leaving m2m_post_remote_msg() ...",GlobalVND.DeviceID);
+
                     //update control flag
                     hq_conflag_ptr->dataflag = 1;
                     hq_conflag_ptr->transtime = 0;
@@ -264,18 +275,24 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     M2M_DBG(level, MESSAGE, "localclock = %llu",*m2m_localtime);
 
                     //wait for transtime
+                    fprintf(stderr,"[CONVERSE]Waiting for [hq_conflag_ptr->dataflag != 1]\n");
                     while(hq_conflag_ptr->dataflag == 1)
                     {
                         //TODO if performace drop,there can optimze to get better
-                        usleep(1);
+                        usleep(SLEEP_TIME);
                     }
 
                    //FIXME the clock update need to consider different network type
                    //and CPU busy/idle
                    //ticks = ns * tick per ns
-                   GlobalVPMU.ticks += hq_conflag_ptr->transtime * (GlobalVPMU.target_cpu_frequency / 1000.0);
+                   *m2m_localtime = time_sync();
+                   M2M_DBG(level, MESSAGE,"[%d]Before time update after send() = %llu",GlobalVND.DeviceID,*m2m_localtime);
                    M2M_DBG(level, MESSAGE,"[%d]Recevier get header ... transmission time = %llu",GlobalVND.DeviceID, hq_conflag_ptr->transtime);
+                   GlobalVPMU.ticks += hq_conflag_ptr->transtime * (GlobalVPMU.target_cpu_frequency / 1000.0);
+                   *m2m_localtime = time_sync();
+                   M2M_DBG(level, MESSAGE,"[%d]After time update after send() = %llu",GlobalVND.DeviceID,*m2m_localtime);
                    hq_conflag_ptr->transtime = 0;
+                   hq_conflag_ptr->dataflag = 0;
                    
                 } 
             break;
@@ -284,9 +301,6 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         default:
             break;
     }
-    M2M_DBG(level, MESSAGE, "[%d]After producer = %d",GlobalVND.DeviceID, meta_ptr->producer);
-    M2M_DBG(level, MESSAGE, "[%d]After consumer = %d",GlobalVND.DeviceID, meta_ptr->consumer);
-    M2M_DBG(level, MESSAGE, "[%d]Leaving m2m_post_remote_msg() ...",GlobalVND.DeviceID);
     return M2M_SUCCESS;
 }
 static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info)
@@ -340,9 +354,19 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
         memcpy((void *)msg, (void *)packet_ptr, localHQe_ptr->PacketSize);
         meta_ptr->consumer = (meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
 
-        //When achieve transmission, update to correct localtime
-        *loctime_ptr = tmp_time;
 
+        //FIXME the clock update need to consider different network type
+        //and CPU busy/idle
+        //ticks = ns * tick per ns
+        if(tmp_time > (localHQe_ptr->SendTime + localHQe_ptr->TransTime))
+        {
+            uint64_t offset_time = (localHQe_ptr->SendTime + localHQe_ptr->TransTime) - tmp_time;
+            GlobalVPMU.ticks += offset_time * (GlobalVPMU.target_cpu_frequency / 1000.0);
+        }
+            
+        //When achieve transmission, update to correct localtime
+        //*loctime_ptr = tmp_time;
+        *loctime_ptr = time_sync();
 
     return M2M_SUCCESS;
 }
