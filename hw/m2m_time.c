@@ -15,8 +15,9 @@ M2M_ERR_T m2m_time_init()
 {
     int level = 2;
     volatile  uint64_t *m2m_localtime;
-    M2M_DBG(level, GENERAL, "In m2m_time_init() ...");
-    //Coordinator initialization all device local time = 0
+    M2M_DBG(level, GENERAL, "Enter m2m_time_init() ...");
+
+    //Coordinator initialization all device local time = MAX_TIME(Mean that device not warm up yet)
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
         M2M_DBG(level, GENERAL, "Coordinator initial all device local time = 0 ...");
@@ -24,16 +25,18 @@ M2M_ERR_T m2m_time_init()
         for(ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
         {
             m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
-            *m2m_localtime = -1;
+            *m2m_localtime = MAX_TIME;
         }
     }
 
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     if(strcmp(GlobalVND.DeviceType,"ZR"))
-        *m2m_localtime = get_vpmu_time();
+        *m2m_localtime = 0; //NOTE: due to vpmu not startup
+        //*m2m_localtime = get_vpmu_time();
     else
         *m2m_localtime = time_sync();
-    M2M_DBG(level, GENERAL, "[%d] m2m_localtime = %llu",GlobalVND.DeviceID, *m2m_localtime);
+
+    M2M_DBG(level, GENERAL, "Exit m2m_time_init() ...");
     return M2M_SUCCESS;
 }
 
@@ -41,15 +44,21 @@ M2M_ERR_T m2m_time_exit()
 {
     int level = 2;
     volatile  uint64_t *m2m_localtime;
-    M2M_DBG(level, GENERAL, "In m2m_time_exit() ...");
+    M2M_DBG(level, GENERAL, "Enter m2m_time_exit() ...");
+
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
+    //avoid block other device when they still running
     *m2m_localtime = MAX_TIME - 1;
+
+    M2M_DBG(level, GENERAL, "Exit m2m_time_exit() ...");
     return M2M_SUCCESS;
 }
 
 uint64_t get_vpmu_time()
 {
-    uint64_t time = vpmu_estimated_execution_time_ns();
+    //Connect GlobalVPMU to get current time
+    volatile uint64_t time = vpmu_estimated_execution_time_ns();
     return time;
 }
 
@@ -58,6 +67,7 @@ uint64_t time_sync()
     volatile uint64_t *nt_ptr;
     volatile uint64_t *router_localtime_ptr;
     int ind;
+    int warmup = 0;
     uint64_t tmp_time = MAX_TIME;
 
     //Get current time
@@ -72,28 +82,37 @@ uint64_t time_sync()
             for(ind = 0; ind < end_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
-                if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
+                if(*nt_ptr == MAX_TIME)
+                    warmup = 1;
+                if(tmp_time > *nt_ptr)
                     tmp_time = *nt_ptr;
             }
         else
             for(ind = 0; ind < router_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_router_list[ind]];
-                if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
+                if(*nt_ptr == MAX_TIME)
+                    warmup = 1;
+                else if(tmp_time > *nt_ptr)
                     tmp_time = *nt_ptr;
             }
 
-        if(tmp_time == MAX_TIME)
-            return 0;
+        //if exist connect device not warmup, just return itself;
+        if(warmup == 1)
+           return 0;
         else
-            return tmp_time;
+           return tmp_time; 
     }
-    else
+    else 
         return get_vpmu_time();
 }
 
-double transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, char* networktype )
+uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, char* networktype )
 {
+    //FIXME Currently we use random way to generate retransmission time
+    //We need to build a formula with many parameter which effect the transtime
+    //e.g. packet loss rate...
+
     srand(time(NULL));
     double latency_ms = 0;
     if(!strcmp(networktype, "zigbee"))
@@ -168,8 +187,8 @@ double transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, char
 */
 
     }
-        printf("latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms* 1000000));
-    return (uint64_t)(latency_ms* 1000000);
+        printf("latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms * 1000000.0));
+    return (uint64_t)(latency_ms* 1000000.0);
 }
 
 static inline int ack_retry(int node_from, int node_to)

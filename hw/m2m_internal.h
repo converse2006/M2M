@@ -18,7 +18,7 @@ extern M2M_ERR_T m2m_recv(void *, int, int );
 extern M2M_ERR_T m2m_send_recv_init();
 extern unsigned int route_discovery(int , int);
 extern uint64_t get_vpmu_time();
-extern double transmission_latency(m2m_HQe_t* , unsigned int, char*);
+extern uint64_t transmission_latency(m2m_HQe_t* , unsigned int, char*);
 extern uint64_t time_sync();
 
 #endif
