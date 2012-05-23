@@ -53,31 +53,34 @@ uint64_t get_vpmu_time()
 
 uint64_t time_sync()
 {
-    uint64_t *nt_ptr;
-    uint64_t *router_localtime_ptr;
+    volatile uint64_t *nt_ptr;
+    volatile uint64_t *router_localtime_ptr;
     int ind;
     uint64_t tmp_time = MAX_TIME;
-    //sync time
+
+    //Get current time
+    //ZED & ZC Have CPU, so their time from VPMU by call get_vpmu_time()
+    //to get current time(ns)
+    //ZR just update its time with other device which it connected
+
     if(!strcmp(GlobalVND.DeviceType, "ZR"))
     {
+        //When negihbor device exist device type = ZED
         if(neighbor_end)
-        {
             for(ind = 0; ind < end_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
                 if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
                     tmp_time = *nt_ptr;
             }
-        }
         else
-        {
             for(ind = 0; ind < router_count; ind++)
             {
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_router_list[ind]];
                 if(tmp_time > *nt_ptr && *nt_ptr != MAX_TIME)
                     tmp_time = *nt_ptr;
             }
-        }
+
         if(tmp_time == MAX_TIME)
             return 0;
         else

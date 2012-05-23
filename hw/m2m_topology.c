@@ -29,7 +29,7 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
 
     rc = node_infofetch(DeviceID);
 
-#ifdef DEBUG_M2M
+#ifdef M2M_SHOW_INFO
     if(rc == M2M_SUCCESS)
     {
         show_m2m_map();

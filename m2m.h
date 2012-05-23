@@ -57,8 +57,10 @@ typedef enum
 #define NETWORK_EXIT           0x000C
 
 //Debugging
+
+#define M2M_SHOWINFO          //Used to show map info 
+
 #define M2MDEBUG 
-#define DEBUG_M2M
 #ifdef M2MDEBUG
 #include <stdio.h>
 #include <assert.h>
