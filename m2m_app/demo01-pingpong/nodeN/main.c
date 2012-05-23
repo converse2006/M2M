@@ -9,11 +9,14 @@ int main(int argc, char* argv[])
     }
     else
         id = atoi(argv[1]);
+
+    char tmp_data[] ="I am node three: ";
     char send_data[100] = "I am node three!!";
     char recv_data[100] = "";
+
     int ret;
     ret = Network_Init(id, "Zigbee");
-    int ind,times = 10000;
+    int ind,times = 1;
     switch(id)
     {
         case 1:
@@ -22,6 +25,11 @@ int main(int argc, char* argv[])
                     printf("[%d]Receiving ... \n",ind);
                     Network_Recv(recv_data, "Zigbee");
                     printf("[%d]Receive data: %s\n", ind, recv_data);
+                    recv_data[0]='W';
+                    recv_data[1]='T';
+                    recv_data[2]='F';
+                    printf("[%d]Sending ... [%s]\n", ind, send_data);
+                    Network_Send(3, send_data, "Zigbee");
                 }
                 break;
         case 3:
@@ -29,6 +37,13 @@ int main(int argc, char* argv[])
                 {
                     printf("[%d]Sending ... [%s]\n", ind, send_data);
                     Network_Send(1, send_data, "Zigbee");
+
+                    printf("[%d]Receiving ... \n",ind);
+                    Network_Recv(recv_data, "Zigbee");
+                    printf("[%d]Receive data: %s\n", ind, recv_data);
+                    recv_data[0]='W';
+                    recv_data[1]='T';
+                    recv_data[2]='F';
                 }
                 break;
         default:

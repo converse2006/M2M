@@ -20,7 +20,7 @@ extern long NODE_SHM_LOCATION[MAX_NODE_NUM];
 extern unsigned int NODE_MAP[MAX_NODE_NUM][MAX_NODE_NUM];
 extern char NODE_TYPE[MAX_NODE_NUM][4];
 extern VND GlobalVND;
-extern long m2m_remote_meta_start[NODE_MAX_LINKS];
+extern long m2m_remote_hq_meta_start[NODE_MAX_LINKS];
 extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_dbp_buffer_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_dbp_meta_start[DATA_BUFFER_ENTRY_NUM];
@@ -394,7 +394,7 @@ static void *m2m_route_processor_create(void *args)
             FROM_packet_ptr = (long *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
             FROM_packet = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
 
-            TO_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_meta_start[count];
+            TO_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_hq_meta_start[count];
             TO_packet_ptr = (long *)(uintptr_t)m2m_remote_hq_buffer_start[count][TO_meta_ptr->producer];
           
             //update packet header
@@ -601,4 +601,5 @@ void dijkstra(int s) {
                 }
     }
 }
+
 

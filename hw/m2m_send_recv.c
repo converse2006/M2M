@@ -11,7 +11,7 @@ static long m2m_local_HQe;
 static long m2m_remote_HQ_meta;
 static long m2m_remote_HQe;*/
 
-extern long m2m_remote_meta_start[NODE_MAX_LINKS];
+extern long m2m_remote_hq_meta_start[NODE_MAX_LINKS];
 extern long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_dbp_buffer_start[DATA_BUFFER_ENTRY_NUM];
 extern long m2m_dbp_meta_start[DATA_BUFFER_ENTRY_NUM];
@@ -199,8 +199,8 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
 
     if(!strcmp(GlobalVND.DeviceType, "ZED"))
     {
-        //NOTE: ZED only connect to router/coordinator, so m2m_remote_meta_start[0] indicate that device shm addr
-        hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_meta_start[0];
+        //NOTE: ZED only connect to router/coordinator, so m2m_remote_hq_meta_start[0] indicate that device shm addr
+        hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_hq_meta_start[0];
 
         //Wait until next_hop device finish initialization
         volatile uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];

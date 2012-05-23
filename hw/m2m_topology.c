@@ -11,10 +11,11 @@ long NODE_SHM_LOCATION[MAX_NODE_NUM] = {0};
 
 extern long shm_address;
 extern VND GlobalVND;
-static M2M_ERR_T node_infofetch(int DeviceID);
 
+static M2M_ERR_T node_infofetch(int DeviceID);
 void show_m2m_position();
 void show_m2m_map();
+
 M2M_ERR_T m2m_topology_init(int DeviceID)
 {
     int level = 2;
@@ -51,14 +52,19 @@ static M2M_ERR_T node_infofetch(int DeviceID)
     int index;
     GlobalVND.DeviceID = DeviceID;
     pFile = fopen("external/qemu-paslab/m2m_app/topology.conf","r");
-    if(pFile == NULL) {fputs("File topology.conf open error",stderr); exit(0); return M2M_ERROR; }
+    if(pFile == NULL) {fputs("File topology.conf open error",stderr); exit(0);}
     if(fgets(info, 40, pFile) == NULL) //Fetch TotalDevice Number
     {
         fprintf(stderr,"fgets error!\n");
         exit(0);
     }
     GlobalVND.TotalDeviceNum = atoi(info);
-    if(DeviceID > GlobalVND.TotalDeviceNum) {fputs("DeviceID larger than Device number!",stderr); return M2M_ERROR; }
+    if(DeviceID > GlobalVND.TotalDeviceNum) 
+    {
+        fputs("DeviceID larger than Device number!",stderr); 
+        return M2M_ERROR; 
+    }
+
     for(index = 1; index <= GlobalVND.TotalDeviceNum; index++)
     {
         NODE_SHM_LOCATION[index] = shm_location;
@@ -232,6 +238,7 @@ static M2M_ERR_T node_infofetch(int DeviceID)
                     }
                 count++;
             }
+#ifdef M2M_SHOWINFO
             printf("Total Device Number = %d\n", GlobalVND.TotalDeviceNum);
             printf("Zigbee device id = %d\n", GlobalVND.DeviceID);
             printf("Zigbee device role = %s\n", GlobalVND.DeviceType);
@@ -241,8 +248,11 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             for(start=0; start <  GlobalVND.NeighborNum; start++)
                 printf("%2d ",GlobalVND.Neighbors[start]);
             printf("\n\n");
+#endif
         }
     }
+
+#ifdef M2M_SHOWINFO
             printf("Total Zigbee Coordinator number = %d\n",  TotalNetworkTypeDevice[0]);
             printf("Total Zigbee Router number = %d\n", TotalNetworkTypeDevice[1]);
             printf("Total Zigbee End device number = %d\n", TotalNetworkTypeDevice[2]);
@@ -252,11 +262,13 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             int start;
             for(start = 1; start <= GlobalVND.TotalDeviceNum ; start++)
                 printf("[%d][%s] shm.addr= %ld\n",  start, NODE_TYPE[start], NODE_SHM_LOCATION[start]);
+#endif
+
     fclose(pFile);
     return M2M_SUCCESS;
 }
 
-#ifdef DEBUG_M2M
+#ifdef M2M_SHOWINFO
 //Check Link between device
 void show_m2m_map()
 {

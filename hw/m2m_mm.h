@@ -36,10 +36,4 @@
 #define ROUTER_SIZE                         COORDINATOR_SIZE
 #endif 
 
-
-
-               
-//#define SHM_SIZE                     MAX_NODE_NUM * (DATA_BUFFER_ + (MAX_NODE_NUM - 1) * HEADER_QUEUE_PER_NODE + METADATA_PER_NODE )
-
-
 #endif
