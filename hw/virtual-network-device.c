@@ -131,7 +131,7 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             M2M_DBG(level, GENERAL, "Enter NETWORK_RECV ...");
                             net_recv* packet;
                             packet = (uint32_t *)v2p(value, 0);
-                            m2m_recv((uint32_t *)v2p(packet->DataAddress, 0), NULL, NULL);
+                            m2m_recv((uint32_t *)v2p(packet->DataAddress, 0), -1, NULL);
                             M2M_DBG(level, GENERAL, "Exit NETWORK_RECV ...");
                         }break;
                 case NETWORK_EXIT: {

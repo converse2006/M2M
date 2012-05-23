@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
     char recv_data[100] = "";
     int ret;
     ret = Network_Init(id, "Zigbee");
-    int ind,times = 100;
+    int ind,times = 10000;
     switch(id)
     {
         case 1:
@@ -27,14 +27,6 @@ int main(int argc, char* argv[])
         case 3:
                 for(ind = 0 ; ind < times; ind++)
                 {
-    /*                switch(ind)
-                    {
-                        case 0:strcat(send_data,"one");break;
-                        case 1:strcat(send_data,"two");break;
-                        case 2:strcat(send_data,"three");break;
-                        case 3:strcat(send_data,"four");break;
-                        case 4:strcat(send_data,"five");break;
-                    }*/
                     printf("[%d]Sending ... [%s]\n", ind, send_data);
                     Network_Send(1, send_data, "Zigbee");
                 }

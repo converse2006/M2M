@@ -8,7 +8,6 @@
 // ---- Globals ----
 pthread_t route_processor;
 long device_shm_location;
-uint64_t *m2m_localtime;
 
 //time sync parameters
 int end_count, router_count, neighbor_end; //Record neighbor node different type number

@@ -7,7 +7,6 @@ extern int end_count, router_count, neighbor_end;
 extern int neighbor_end_list[NODE_MAX_LINKS];
 extern int neighbor_router_list[NODE_MAX_LINKS];
 
-extern uint64_t *m2m_localtime;
 extern long m2m_localtime_start[MAX_NODE_NUM];
 extern VND GlobalVND;
 static inline int ack_retry(int node_from, int node_to);
@@ -15,6 +14,7 @@ static inline int ack_retry(int node_from, int node_to);
 M2M_ERR_T m2m_time_init()
 {
     int level = 2;
+    volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, GENERAL, "In m2m_time_init() ...");
     //Coordinator initialization all device local time = 0
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
@@ -40,7 +40,9 @@ M2M_ERR_T m2m_time_init()
 M2M_ERR_T m2m_time_exit()
 {
     int level = 2;
+    volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, GENERAL, "In m2m_time_exit() ...");
+    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     *m2m_localtime = MAX_TIME - 1;
     return M2M_SUCCESS;
 }
