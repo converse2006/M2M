@@ -31,13 +31,16 @@ M2M_ERR_T m2m_copy_to_dbp(void *data, int sizeb,int DeviceID)
 M2M_ERR_T m2m_dbp_init()
 {
     int level = 2;
-    M2M_DBG(level, GENERAL, "Enter m2m_dbp_init() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_dbp_init() ...");
     int index, index_link, index_ent;
     long DB_data_base,DB_meta_base;
     long HQ_data_base,HQ_meta_base;
 
     //NODE_SHM_LOCATION + base shm address
     int ind;
+
+    //Signal all device that start program
+    m2m_localtime_start[0] = shm_address_location;
 
     //NOTE: MAX_NODE_NUM alway equal to (totoal node number + 1) due to ID start from 1
     //Calculate HQ control flag(Small Communication Scheme)
@@ -75,7 +78,6 @@ M2M_ERR_T m2m_dbp_init()
             m2m_hq_buffer_start[0][index_ent] = HQ_data_base + (index_ent * HEADER_QUEUE_ENTRY_SIZE);  
 
         m2m_hq_meta_start[0]   = HQ_meta_base ;  
-        m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + TOTAL_HEADER_QUEUE_SIZE;
         DB_data_base = GlobalVND.Shared_memory_address + (TOTAL_HEADER_QUEUE_SIZE) + HEADER_QUEUE_CONTRLFLAG;
         DB_meta_base = GlobalVND.Shared_memory_address + (TOTAL_HEADER_QUEUE_SIZE) + HEADER_QUEUE_CONTRLFLAG + \
                        (DATA_BUFFER_SIZE);
@@ -124,9 +126,6 @@ M2M_ERR_T m2m_dbp_init()
                           (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE \
                           + HEADER_QUEUE_SIZE; 
 
-            //For small size transmission
-            m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + \
-                    (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE * 2;
 #endif
         }
         else
@@ -154,10 +153,6 @@ M2M_ERR_T m2m_dbp_init()
             m2m_hq_meta_start[NODE_MAX_LINKS + 1]   = GlobalVND.Shared_memory_address + \
                           (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE \
                           + HEADER_QUEUE_SIZE; 
-
-            //For small size transmission
-            m2m_hq_conflag_start[GlobalVND.DeviceID] = GlobalVND.Shared_memory_address + \
-                        (TOTAL_HEADER_QUEUE_SIZE * NODE_MAX_LINKS) + TOTAL_DATA_BUFFER_SIZE + TOTAL_HEADER_QUEUE_SIZE *2;
         }
     }
     
@@ -356,7 +351,7 @@ GlobalVND.DeviceID, index_link, index_ent, m2m_hq_buffer_start[index_link][index
     
 #endif
 
-    M2M_DBG(level, GENERAL, "Exit m2m_dbp_init() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_dbp_init() ...");
     return M2M_SUCCESS;
 }
 
@@ -365,7 +360,7 @@ M2M_ERR_T m2m_dbp_exit()
     int level = 2;
     int ind,ind2;
 
-    M2M_DBG(level, GENERAL, "Enter m2m_dbp_exit() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_dbp_exit() ...");
 
     //Clean GlobalVND data
     //GlobalVND.DeviceID = 0;
@@ -375,6 +370,6 @@ M2M_ERR_T m2m_dbp_exit()
         for(ind2 = 0; ind2 < 4; ind2++)
             NODE_TYPE[ind][ind2] = NULL;
 
-    M2M_DBG(level, GENERAL, "Exit m2m_dbp_exit() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_dbp_exit() ...");
     return M2M_SUCCESS;
 }

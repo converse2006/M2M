@@ -21,7 +21,7 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
     int level = 2;
     int rc = M2M_SUCCESS;
     int ind;
-    M2M_DBG(level, GENERAL, "Enter m2m_topology_init() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_topology_init() ...");
     for(ind = 0; ind < 3; ind++)
     {
         TotalNetworkTypeDevice[ind]= 0;
@@ -37,7 +37,7 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
         show_m2m_position();
     }
 #endif
-    M2M_DBG(level, GENERAL, "Exit m2m_topology_init() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_topology_init() ...");
     return rc;
 }
 

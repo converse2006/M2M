@@ -14,7 +14,7 @@ extern VND GlobalVND;
 M2M_ERR_T m2m_mm_init()
 {
     int level = 2;
-    M2M_DBG(level, GENERAL, "Enter m2m_mm_init() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_mm_init() ...");
     M2M_ERR_T rc = M2M_SUCCESS;
     key_t key = x86_SHM_KEY; 
 
@@ -23,10 +23,10 @@ M2M_ERR_T m2m_mm_init()
                TotalNetworkTypeDevice[2] * END_DEVICE_SIZE + \
                MAX_NODE_NUM * sizeof(uint64_t);   
      
-    M2M_DBG(level, GENERAL, "COORDINATOR_SIZE         = %d", COORDINATOR_SIZE);
-    M2M_DBG(level, GENERAL, "ROUTER_SIZE              = %d", ROUTER_SIZE);
-    M2M_DBG(level, GENERAL, "END_DEVICE_SIZE          = %d", END_DEVICE_SIZE);
-    M2M_DBG(level, GENERAL, "Total shared memory size = %llu", SHM_SIZE);
+    M2M_DBG(level, MESSAGE, "COORDINATOR_SIZE         = %d", COORDINATOR_SIZE);
+    M2M_DBG(level, MESSAGE, "ROUTER_SIZE              = %d", ROUTER_SIZE);
+    M2M_DBG(level, MESSAGE, "END_DEVICE_SIZE          = %d", END_DEVICE_SIZE);
+    M2M_DBG(level, MESSAGE, "Total shared memory size = %llu", SHM_SIZE);
 
     // get the shared memory id
     if((shmid = shmget(key,SHM_SIZE,IPC_CREAT | 0666)) < 0)
@@ -38,7 +38,7 @@ M2M_ERR_T m2m_mm_init()
 
 
     shm_address_location = (long)shm_address;
-    M2M_DBG(level, GENERAL,"Shared Memory Start addr = %ld \n", shm_address_location);
+    M2M_DBG(level, MESSAGE,"Shared Memory Start addr = %ld \n", shm_address_location);
 
     //Usage: Use to check every device is correctly mapping on shared memory
     /*
@@ -55,7 +55,7 @@ M2M_ERR_T m2m_mm_init()
     while(1); //Force device stop here
     */
 
-    M2M_DBG(level, GENERAL, "Exit m2m_mm_init() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_mm_init() ...");
     return rc;
 }
 
@@ -64,7 +64,7 @@ M2M_ERR_T m2m_mm_exit()
     int level = 2;
     int errno;
     struct shmid_ds *shmid_ds=NULL;
-    M2M_DBG(level, GENERAL, "Enter m2m_mm_exit() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_mm_exit() ...");
 
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
@@ -83,6 +83,6 @@ M2M_ERR_T m2m_mm_exit()
 
     }
 
-    M2M_DBG(level, GENERAL, "Exit m2m_mm_exit() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_mm_exit() ...");
     return M2M_SUCCESS;
 }

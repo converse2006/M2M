@@ -15,13 +15,13 @@ M2M_ERR_T m2m_time_init()
 {
     int level = 2;
     volatile  uint64_t *m2m_localtime;
-    M2M_DBG(level, GENERAL, "Enter m2m_time_init() ...");
+    int ind;
+    M2M_DBG(level, MESSAGE, "Enter m2m_time_init() ...");
 
     //Coordinator initialization all device local time = MAX_TIME(Mean that device not warm up yet)
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
-        M2M_DBG(level, GENERAL, "Coordinator initial all device local time = 0 ...");
-        int ind;
+        M2M_DBG(level, MESSAGE, "Coordinator initial all device local time = 0 ...");
         for(ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
         {
             m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
@@ -36,7 +36,46 @@ M2M_ERR_T m2m_time_init()
     else
         *m2m_localtime = time_sync();
 
-    M2M_DBG(level, GENERAL, "Exit m2m_time_init() ...");
+/*
+    volatile uint64_t *action_probe;
+    int start[MAX_NODE_NUM];
+    int count = 0;
+    action_probe = (uint64_t *)m2m_localtime_start[0];
+    for(ind = 1; ind < GlobalVND.TotalDeviceNum; ind++)
+        start[ind] = 0;
+
+    if(!strcmp(GlobalVND.DeviceType, "ZC"))
+    {
+        M2M_DBG(level, MESSAGE, "ZC Enter while() loop ...");
+        action_probe = 0;
+        while(count < (GlobalVND.TotalDeviceNum - 1))
+        {
+            for(ind = 2; ind <= GlobalVND.TotalDeviceNum; ind++)
+            {
+                if(!start[ind])
+                {
+                    m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
+                    if(*m2m_localtime != MAX_TIME) 
+                    {
+                        start[ind] = 1;
+                        count++;
+                    }
+                }
+            }
+        }
+        M2M_DBG(level, MESSAGE, "ZC Exit while() loop ...");
+        action_probe = 1;
+        
+    }
+    else
+    {
+        M2M_DBG(level, MESSAGE, "Other Enter while() loop ...");
+        while(!action_probe)
+            usleep(SLEEP_TIME * 10);
+        M2M_DBG(level, MESSAGE, "Other Exit while() loop ...");
+    }
+*/
+    M2M_DBG(level, MESSAGE, "Exit m2m_time_init() ...");
     return M2M_SUCCESS;
 }
 
@@ -44,14 +83,14 @@ M2M_ERR_T m2m_time_exit()
 {
     int level = 2;
     volatile  uint64_t *m2m_localtime;
-    M2M_DBG(level, GENERAL, "Enter m2m_time_exit() ...");
+    M2M_DBG(level, MESSAGE, "Enter m2m_time_exit() ...");
 
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
     //avoid block other device when they still running
     *m2m_localtime = MAX_TIME - 1;
 
-    M2M_DBG(level, GENERAL, "Exit m2m_time_exit() ...");
+    M2M_DBG(level, MESSAGE, "Exit m2m_time_exit() ...");
     return M2M_SUCCESS;
 }
 
@@ -84,7 +123,7 @@ uint64_t time_sync()
                 nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
                 if(*nt_ptr == MAX_TIME)
                     warmup = 1;
-                if(tmp_time > *nt_ptr)
+                else if(tmp_time > *nt_ptr)
                     tmp_time = *nt_ptr;
             }
         else
@@ -112,7 +151,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
     //FIXME Currently we use random way to generate retransmission time
     //We need to build a formula with many parameter which effect the transtime
     //e.g. packet loss rate...
-
+    int level = 2;
     srand(time(NULL));
     double latency_ms = 0;
     if(!strcmp(networktype, "zigbee"))
@@ -187,7 +226,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
 */
 
     }
-        printf("latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms * 1000000.0));
+        M2M_DBG(level, MESSAGE, "latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms * 1000000.0));
     return (uint64_t)(latency_ms* 1000000.0);
 }
 

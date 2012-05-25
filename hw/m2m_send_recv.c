@@ -205,7 +205,7 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         //Wait until next_hop device finish initialization
         volatile uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
         //FIXME When I modify the code when all device already warmup then run scenario, then delete the if function!
-        if(*nexthop_localtime == -1) //alway check receiver device warmup or not
+        if(*nexthop_localtime == MAX_TIME) //alway check receiver device warmup or not
             return M2M_TRANS_NOT_READY;
         M2M_DBG(level, MESSAGE, "[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
     }
@@ -216,7 +216,7 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         //Wait until next_hop device finish initialization
         volatile uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
         //FIXME When I modify the code when all device already warmup then run scenario, then delete the if function!
-        if(*nexthop_localtime == -1) //alway check receiver device warmup or not
+        if(*nexthop_localtime == MAX_TIME) //alway check receiver device warmup or not
         return M2M_TRANS_NOT_READY;
         M2M_DBG(level, MESSAGE, "[%d]Neighbor %d localtime = %llu",GlobalVND.DeviceID, next_hop_ID, *nexthop_localtime);
     }
@@ -330,10 +330,8 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
 {
     int level = 2;
     volatile m2m_HQ_meta_t *hq_meta_ptr;
-    volatile m2m_HQe_t *localHQe_ptr = NULL;
-    volatile long      *packet_ptr;
-    volatile int index = 0;
-
+    volatile m2m_HQe_t     *localHQe_ptr;
+    volatile long          *packet_ptr;
 
     if(!strcmp(GlobalVND.DeviceType, "ZED"))
         hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[0];
@@ -341,18 +339,21 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
         hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS];
 
 
+    
+    if(hq_meta_ptr->consumer == hq_meta_ptr->producer)
+    {
+        usleep(SLEEP_TIME * 10);
+        return M2M_TRANS_NOT_READY;
+    }
+
+    M2M_DBG(level, MESSAGE, "Enter m2m_get_local_msg() ...");
+
     //When waiting for receving data, advance time to MAX
-    volatile uint64_t tmp_time;
+    uint64_t tmp_time;
     volatile uint64_t *m2m_localtime;
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     tmp_time = *m2m_localtime;
     *m2m_localtime = MAX_TIME - 1; //Why "MAX_TIME -1" ? Because MAX_TIME used to judge "Device not warm up yet"
-    
-    if(hq_meta_ptr->consumer == hq_meta_ptr->producer)
-        return M2M_TRANS_NOT_READY;
-
-
-    M2M_DBG(level, MESSAGE, "Enter m2m_get_local_msg() ...");
 
     M2M_DBG(level, MESSAGE, "[%d]In m2m_get_local_msg() ...",GlobalVND.DeviceID);
     M2M_DBG(level, MESSAGE, "[%d]producer address : %ld", GlobalVND.DeviceID, (long)(&(hq_meta_ptr->producer)));
@@ -366,7 +367,7 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
     if(!strcmp(GlobalVND.DeviceType, "ZED"))
     {
         localHQe_ptr = (m2m_HQe_t *)(uintptr_t) (m2m_hq_buffer_start[0][hq_meta_ptr->consumer]);
-        packet_ptr = (long *)(uintptr_t)(m2m_hq_buffer_start[0][hq_meta_ptr->consumer] + sizeof(m2m_HQe_t));
+        packet_ptr   = (long *)(uintptr_t)(m2m_hq_buffer_start[0][hq_meta_ptr->consumer] + sizeof(m2m_HQe_t));
     }
     else
     {
@@ -381,7 +382,7 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
     hq_meta_ptr->consumer = (hq_meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
 
     //After finish recv(), resume device local time
-    *m2m_localtime =tmp_time;
+    *m2m_localtime = tmp_time;
 
 
     M2M_DBG(level, MESSAGE,"[%d]Recevier get header ... transmission time = %llu",GlobalVND.DeviceID,\
@@ -395,8 +396,8 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
     //ticks = ns * tick per ns
     if(*m2m_localtime < (localHQe_ptr->SendTime + localHQe_ptr->TransTime))
     {
-        volatile uint64_t offset_time = (localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime;
-        GlobalVPMU.ticks += offset_time * (GlobalVPMU.target_cpu_frequency / 1000.0);
+        GlobalVPMU.ticks += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime) * \
+                            (GlobalVPMU.target_cpu_frequency / 1000.0);
     }
             
     //When achieve transmission, update to correct localtime

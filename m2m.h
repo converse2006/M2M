@@ -20,6 +20,7 @@
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
 #define ROUTER_RFDx
 #define MAX_TIME (-1)
+//#define MAX_TIME (18446744073709551615)
 #define SLEEP_TIME 10
 
 typedef struct VND{

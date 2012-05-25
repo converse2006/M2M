@@ -91,7 +91,6 @@ int Network_Recv(char* message, char* NetworkType)
     net_recv packet;
     packet.SenderID = -1;
     packet.DataAddress = (uint32_t)&message[0];
-    //int Destination = (int)message;
     addr = DeviceOpen(sizeof(net_recv), 0);
     int PA = (int)(&packet);
     memcpy(addr + 8, &PA, sizeof(int));
@@ -109,7 +108,6 @@ int Network_Send(unsigned int ReceiverID, char* message, char* NetworkType)
     //ShowPacketInfo(packet);
 
     addr = DeviceOpen(sizeof(net_send), 0);
-    //printf("packet address = %x\n", &packet);
     int PA = (int)(&packet);
     memcpy(addr+4,&PA,sizeof(int));
     return 1;
