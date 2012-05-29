@@ -1,0 +1,33 @@
+Author: Chun-Han Chen (converse2006@gmail.com)
+
+Run scenario step:
+1.Edit your scenario (reference main.c) and modify topology.conf
+based on your scenario 
+
+2.Make application and use adb push into emulator
+Usage: make clean; make; adb push vnd_api /data
+Note: When push app into emulator, just run one emulator
+
+3.Run many emulator as many as your device number
+  and waiting for boot up
+
+4.Execute application
+Usage: ./data/vnd_api #DeviceNum
+./data/vnd_api 1
+./data/vnd_api 2
+./data/vnd_api 3
+./data/vnd_api 4
+./data/vnd_api 5
+./data/vnd_api 6
+./data/vnd_api 7
+./data/vnd_api 8
+./data/vnd_api 9
+./data/vnd_api 10
+./data/vnd_api 11
+./data/vnd_api 12
+./data/vnd_api 13
+./data/vnd_api 14
+./data/vnd_api 15
+./data/vnd_api 16
+
+

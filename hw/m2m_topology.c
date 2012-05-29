@@ -256,6 +256,7 @@ static M2M_ERR_T node_infofetch(int DeviceID)
             printf("Total Zigbee Coordinator number = %d\n",  TotalNetworkTypeDevice[0]);
             printf("Total Zigbee Router number = %d\n", TotalNetworkTypeDevice[1]);
             printf("Total Zigbee End device number = %d\n", TotalNetworkTypeDevice[2]);
+            printf("Total Zigbee device number = %d\n", GlobalVND.TotalDeviceNum);
             printf("%d ZC before me\n", BeforeNetworkTypeDevice[0]);
             printf("%d ZR before me\n", BeforeNetworkTypeDevice[1]);
             printf("%d ZED before me\n", BeforeNetworkTypeDevice[2]);

@@ -24,37 +24,37 @@ M2M_ERR_T m2m_time_init()
         M2M_DBG(level, MESSAGE, "Coordinator initial all device local time = 0 ...");
         for(ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
         {
-            m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
+            m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[ind];
             *m2m_localtime = MAX_TIME;
         }
     }
 
-    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     if(strcmp(GlobalVND.DeviceType,"ZR"))
         *m2m_localtime = 0; //NOTE: due to vpmu not startup
         //*m2m_localtime = get_vpmu_time();
     else
-        *m2m_localtime = time_sync();
+        *m2m_localtime = 0;//time_sync();
 
-/*
+
     volatile uint64_t *action_probe;
-    int start[MAX_NODE_NUM];
-    int count = 0;
-    action_probe = (uint64_t *)m2m_localtime_start[0];
-    for(ind = 1; ind < GlobalVND.TotalDeviceNum; ind++)
-        start[ind] = 0;
+    action_probe = (uint64_t *)(uintptr_t)m2m_localtime_start[0];
 
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
+        int count = 0;
+        int start[MAX_NODE_NUM];
+        for(ind = 2; ind <= GlobalVND.TotalDeviceNum; ind++)
+            start[ind] = 0;
         M2M_DBG(level, MESSAGE, "ZC Enter while() loop ...");
-        action_probe = 0;
+        *action_probe = 0;
         while(count < (GlobalVND.TotalDeviceNum - 1))
         {
             for(ind = 2; ind <= GlobalVND.TotalDeviceNum; ind++)
             {
                 if(!start[ind])
                 {
-                    m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
+                    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[ind];
                     if(*m2m_localtime != MAX_TIME) 
                     {
                         start[ind] = 1;
@@ -62,19 +62,21 @@ M2M_ERR_T m2m_time_init()
                     }
                 }
             }
+            M2M_DBG(level, MESSAGE, "[ZC]count = %d",count);
         }
         M2M_DBG(level, MESSAGE, "ZC Exit while() loop ...");
-        action_probe = 1;
+        *action_probe = 1;
         
     }
     else
     {
         M2M_DBG(level, MESSAGE, "Other Enter while() loop ...");
-        while(!action_probe)
-            usleep(SLEEP_TIME * 10);
+        while(*action_probe != 1);
+            //usleep(SLEEP_TIME * 10);
+        sleep(1);
         M2M_DBG(level, MESSAGE, "Other Exit while() loop ...");
     }
-*/
+
     M2M_DBG(level, MESSAGE, "Exit m2m_time_init() ...");
     return M2M_SUCCESS;
 }
@@ -85,7 +87,7 @@ M2M_ERR_T m2m_time_exit()
     volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, MESSAGE, "Enter m2m_time_exit() ...");
 
-    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
     //avoid block other device when they still running
     *m2m_localtime = MAX_TIME - 1;
@@ -120,7 +122,7 @@ uint64_t time_sync()
         if(neighbor_end)
             for(ind = 0; ind < end_count; ind++)
             {
-                nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
+                nt_ptr = (uint64_t *)(uintptr_t)m2m_localtime_start[neighbor_end_list[ind]];
                 if(*nt_ptr == MAX_TIME)
                     warmup = 1;
                 else if(tmp_time > *nt_ptr)
@@ -129,7 +131,7 @@ uint64_t time_sync()
         else
             for(ind = 0; ind < router_count; ind++)
             {
-                nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_router_list[ind]];
+                nt_ptr = (uint64_t *)(uintptr_t)m2m_localtime_start[neighbor_router_list[ind]];
                 if(*nt_ptr == MAX_TIME)
                     warmup = 1;
                 else if(tmp_time > *nt_ptr)
@@ -168,7 +170,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
         for(ind = 0; ind <= ack_retry_num; ind++) //retry for ACK failed
         {
             int ind2;
-            cdma_retry_num = rand()% 5 +1; //worst case: 4+1
+            cdma_retry_num = 1; //rand()% 5 +1; //worst case: 4+1
             //fprintf(stderr, "%d->%d cdma retry num = %d\n", FromDeviceID, ToDeviceID, cdma_retry_num);
             //CSMA-CA and retries
             for(ind2 = 0; ind2 < cdma_retry_num; ind2++)
@@ -186,6 +188,9 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
             if((ind+1) <= ack_retry_num)
                 latency_ms += 0.864; //assuem ACK failed
         }
+
+
+
 
         //TODO If we need more roughly communication time estimation
         //     One way that calculate from source to destination from
@@ -232,7 +237,14 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
 
 static inline int ack_retry(int node_from, int node_to)
 {
-    int retry_num = rand()%4; //worst case: 3
-    //printf("%d->%d ack retry num = %d\n", node_from, node_to, retry_num);
+    int retry_num = 0;
+    //Best Case:
+    retry_num = 0;
+
+    //Worst Case:
+    //retry_num = 3;
+
+    //Random Case:
+    //retry_num = rand()%4; 
     return retry_num;
 }

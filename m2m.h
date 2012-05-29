@@ -99,7 +99,7 @@ typedef enum
 #define TimingModel              1   // 0: fast 1: slow
 
 
-#define MAX_NODE_NUM                 10
+#define MAX_NODE_NUM                 100
 #define MAX_NODE_SIZE                100
 
 

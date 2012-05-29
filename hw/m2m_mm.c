@@ -29,7 +29,7 @@ M2M_ERR_T m2m_mm_init()
     M2M_DBG(level, MESSAGE, "Total shared memory size = %llu", SHM_SIZE);
 
     // get the shared memory id
-    if((shmid = shmget(key,SHM_SIZE,IPC_CREAT | 0666)) < 0)
+    if((shmid = shmget(key,(SHM_SIZE+100),IPC_CREAT | 0666)) < 0)
     {perror("shmget failed");   exit(-1);}
 
     // Attach the segment to data space

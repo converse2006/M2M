@@ -172,7 +172,8 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
     volatile m2m_HQ_meta_t *hq_meta_ptr;
     volatile m2m_HQ_cf_t *hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[GlobalVND.DeviceID]; 
     volatile long *remoteHQe_ptr = NULL;
-    volatile uint64_t *m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    volatile uint64_t *m2m_localtime;
+    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     volatile int index = 0;
     int count = 0;
     int flag = 1;
@@ -203,7 +204,8 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_remote_hq_meta_start[0];
 
         //Wait until next_hop device finish initialization
-        volatile uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
+        volatile uint64_t *nexthop_localtime;
+        nexthop_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[next_hop_ID];
         //FIXME When I modify the code when all device already warmup then run scenario, then delete the if function!
         if(*nexthop_localtime == MAX_TIME) //alway check receiver device warmup or not
             return M2M_TRANS_NOT_READY;
@@ -214,7 +216,8 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
         hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS + 1];
 
         //Wait until next_hop device finish initialization
-        volatile uint64_t *nexthop_localtime = (uint64_t *)m2m_localtime_start[next_hop_ID];
+        volatile uint64_t *nexthop_localtime;
+        nexthop_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[next_hop_ID];
         //FIXME When I modify the code when all device already warmup then run scenario, then delete the if function!
         if(*nexthop_localtime == MAX_TIME) //alway check receiver device warmup or not
         return M2M_TRANS_NOT_READY;
@@ -297,7 +300,7 @@ static M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size,
                     while(hq_conflag_ptr->dataflag == 1)
                     {
                         //TODO if performace drop,there can optimze to get better
-                        usleep(SLEEP_TIME);
+                        //usleep(SLEEP_TIME);
                     }
 
                    //FIXME the clock update need to consider different network type
@@ -342,7 +345,7 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
     
     if(hq_meta_ptr->consumer == hq_meta_ptr->producer)
     {
-        usleep(SLEEP_TIME * 10);
+        //usleep(SLEEP_TIME);
         return M2M_TRANS_NOT_READY;
     }
 
@@ -351,7 +354,7 @@ static M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *m
     //When waiting for receving data, advance time to MAX
     uint64_t tmp_time;
     volatile uint64_t *m2m_localtime;
-    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     tmp_time = *m2m_localtime;
     *m2m_localtime = MAX_TIME - 1; //Why "MAX_TIME -1" ? Because MAX_TIME used to judge "Device not warm up yet"
 

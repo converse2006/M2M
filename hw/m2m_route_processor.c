@@ -74,13 +74,17 @@ static void *m2m_enddevice_processor_create(void *args)
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     //update local clock
-    router_localtime_ptr =(uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    volatile uint64_t *action_probe;
+    action_probe = (uint64_t *)(uintptr_t)m2m_localtime_start[0];
+    while((*action_probe) != 1);
+
+    router_localtime_ptr =(uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     while(1)
     {
                 if(*router_localtime_ptr < get_vpmu_time())
                     *router_localtime_ptr = get_vpmu_time();
 
-                usleep(SLEEP_TIME);
+                //usleep(SLEEP_TIME);
     }
     pthread_exit(NULL);
 }
@@ -99,7 +103,7 @@ static void *m2m_route_processor_create(void *args)
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     //update local clock
-    router_localtime_ptr  = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    router_localtime_ptr  = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
     if(*router_localtime_ptr != (MAX_TIME - 1))
         tmp_router_localtime = *router_localtime_ptr;
     *router_localtime_ptr = time_sync();
@@ -147,7 +151,7 @@ static void *m2m_route_processor_create(void *args)
                 lock++;
             }
             //FIXME this function can remove sleep function!! I GUESS!!
-            usleep(SLEEP_TIME);
+            //usleep(SLEEP_TIME);
         }
         
         M2M_DBG(level, MESSAGE, "Header Queue exist packet!!");
@@ -258,10 +262,10 @@ static void *m2m_route_processor_create(void *args)
                     if(neigbor_device_deadline[NODE_MAX_LINKS + 1] != 1 && 
                        packet_from != GlobalVND.DeviceID && packet_next != GlobalVND.DeviceID)
                     {
-                        loc_time = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+                        loc_time = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu\n ", GlobalVND.DeviceID, *loc_time);
                         //FIXME this usleep could delete!
-                        usleep(SLEEP_TIME);
+                        //usleep(SLEEP_TIME);
 
                         if(packet_mintime <= *loc_time && *loc_time != MAX_TIME)
                         {
@@ -303,10 +307,10 @@ static void *m2m_route_processor_create(void *args)
                     if(neigbor_device_deadline[index] != 1 && 
                        packet_from != GlobalVND.Neighbors[index] && packet_next != GlobalVND.Neighbors[index])
                     {
-                        loc_time = (uint64_t *)m2m_localtime_start[GlobalVND.Neighbors[index]];
+                        loc_time = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.Neighbors[index]];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu\n ", GlobalVND.Neighbors[index], *loc_time);
                         //FIXME usleep could be delete!!
-                        usleep(SLEEP_TIME);
+                        //usleep(SLEEP_TIME);
 
                         if(packet_mintime /*- one_hop_latency(GlobalVND.Neighbors[index])*/ <= *loc_time && *loc_time != MAX_TIME)
                         {
@@ -328,9 +332,11 @@ static void *m2m_route_processor_create(void *args)
 
         //Wait until receiver finish initialization
         M2M_DBG(level, MESSAGE, "Waiting receiver local time achieve!!!\n");
-        volatile uint64_t *nextdev_time = (uint64_t *)m2m_localtime_start[packet_next];
-        while(*nextdev_time == MAX_TIME)
-            usleep(SLEEP_TIME);
+        volatile uint64_t *nextdev_time;
+        nextdev_time = (uint64_t *)(uintptr_t)m2m_localtime_start[packet_next];
+
+        while(*nextdev_time == MAX_TIME);
+            //usleep(SLEEP_TIME);
 
         M2M_DBG(level, MESSAGE, "Routing Processor forward packet from %d -> %d",packet_from ,packet_next);
         int count = 0;
@@ -353,8 +359,8 @@ static void *m2m_route_processor_create(void *args)
 
             //Check receiver header queue is full or not
             M2M_DBG(level, MESSAGE, "[CONVERSE]Waiting for [(TO_meta_ptr->consumer + 1) != TO_meta_ptr->consumer]\n");
-            while(((TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM) == TO_meta_ptr->consumer)
-                usleep(SLEEP_TIME);
+            while(((TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM) == TO_meta_ptr->consumer);
+                //usleep(SLEEP_TIME);
 
             //NOTE: Due to packet send to device itself,just forward packet without any packet modification
 
@@ -425,8 +431,8 @@ static void *m2m_route_processor_create(void *args)
 
             //Check receiver header queue is full or not
             M2M_DBG(level, MESSAGE,"[CONVERSE]Waiting for [(TO_meta_ptr->producer + 1) != TO_meta_ptr->consumer]\n");
-            while((TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM == TO_meta_ptr->consumer)
-                usleep(SLEEP_TIME);
+            while((TO_meta_ptr->producer + 1) % HEADER_QUEUE_ENTRY_NUM == TO_meta_ptr->consumer);
+                //usleep(SLEEP_TIME);
 
             memcpy((void *)TO_packet_ptr,(void *)FROM_packet_ptr,(sizeof(m2m_HQe_t) + FROM_packet->PacketSize));
             FROM_meta_ptr->consumer = (FROM_meta_ptr->consumer + 1) % HEADER_QUEUE_ENTRY_NUM;
@@ -450,19 +456,15 @@ static void *m2m_route_processor_create(void *args)
                 hq_conflag->dataflag  = 0;
                 M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %llu", hq_conflag->transtime);
                 M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
-                /*while(hq_conflag->dataflag)
-                {
-                    hq_conflag->dataflag = 0;
-                    usleep(SLEEP_TIME);
-                }*/
             }
         }
             M2M_DBG(level, MESSAGE, "PACKET TO/FROM:\n TO_packet_addr = %ld\n FROM_packet_addr = %ld\n Packet Size = %d\n SendTime = %llu\n TransTime = %llu\n", TO_packet_ptr, FROM_packet_ptr, FROM_packet->PacketSize, FROM_packet->SendTime, FROM_packet->TransTime);
 
 
     //Trick: 
+    /*
     if(!strcmp(GlobalVND.DeviceType, "ZR"))
-        GlobalVPMU.ticks = *router_localtime_ptr * (GlobalVPMU.target_cpu_frequency / 1000.0);
+        GlobalVPMU.ticks = *router_localtime_ptr * (GlobalVPMU.target_cpu_frequency / 1000.0);*/
 
 
     }
@@ -540,6 +542,8 @@ M2M_ERR_T m2m_route_processor_exit()
     neighbor_end = 0;
     end_count =0;
     router_count = 0;
+    //FIXME how to handle exit function 
+    //when connected device not finish yet?
 
     //cancel the service processor
     pthread_cancel(route_processor);
