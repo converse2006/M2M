@@ -6,8 +6,8 @@
 /*------------------------------------------------------------*/
 /*  Includes                                                  */
 /*------------------------------------------------------------*/
-#include <stdio.h>
-#include <stdlib.h>
+/*#include <stdio.h>
+#include <stdlib.h>*/
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -61,34 +61,6 @@ typedef enum
 
 #define M2M_SHOWINFO          //Used to show map info 
 
-#define M2MDEBUG 
-#ifdef M2MDEBUG
-#include <stdio.h>
-#include <assert.h>
-#define M2M_DEBUG_LEVEL 2
-
-#define M2M_DBG(level, CATEGORY, str, ...) \
-    M2M_DEBUG_##CATEGORY(level, str, ##__VA_ARGS__)
-
-#define M2M_DEBUG_MESSAGE(level, str, ...) \
-    if(level <= M2M_DEBUG_LEVEL) \
-        fprintf(stderr, "+[M2M DBG] %s:%.3d: " str "\n", __FILE__,__LINE__, ##__VA_ARGS__);
-
-#define M2M_DEBUG_GENERAL(level, str, ...) \
-    if(level <= M2M_DEBUG_LEVEL) \
-        fprintf(stderr, "+[M2M DBG] " str "\n", ##__VA_ARGS__);
-
-#define M2M_DEBUG_ASSERT(level, str, ...) \
-    if (level <= M2M_DEBUG_LEVEL) \
-        assert((str));
-#else
-
-#define M2M_DBG(level, CATEGORY, str, ...)
-#define M2M_DEBUG_MESSAGE(level, str, ...)
-#define M2M_DEBUG_GENERAL(level, str, ...)
-#define M2M_DEBUG_ASSERT(level, str, ...)
-
-#endif
 /*------------------------------------------------------------*/
 /*  System V IPC shared memory                                */
 /*------------------------------------------------------------*/

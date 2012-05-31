@@ -24,12 +24,12 @@ M2M_ERR_T m2m_time_init()
         M2M_DBG(level, MESSAGE, "Coordinator initial all device local time = 0 ...");
         for(ind = 1; ind <= GlobalVND.TotalDeviceNum; ind++)
         {
-            m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[ind];
+            m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
             *m2m_localtime = MAX_TIME;
         }
     }
 
-    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
+    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     if(strcmp(GlobalVND.DeviceType,"ZR"))
         *m2m_localtime = 0; //NOTE: due to vpmu not startup
         //*m2m_localtime = get_vpmu_time();
@@ -38,7 +38,7 @@ M2M_ERR_T m2m_time_init()
 
 
     volatile uint64_t *action_probe;
-    action_probe = (uint64_t *)(uintptr_t)m2m_localtime_start[0];
+    action_probe = (uint64_t *)m2m_localtime_start[0];
 
     if(!strcmp(GlobalVND.DeviceType, "ZC"))
     {
@@ -46,7 +46,6 @@ M2M_ERR_T m2m_time_init()
         int start[MAX_NODE_NUM];
         for(ind = 2; ind <= GlobalVND.TotalDeviceNum; ind++)
             start[ind] = 0;
-        M2M_DBG(level, MESSAGE, "ZC Enter while() loop ...");
         *action_probe = 0;
         while(count < (GlobalVND.TotalDeviceNum - 1))
         {
@@ -54,7 +53,7 @@ M2M_ERR_T m2m_time_init()
             {
                 if(!start[ind])
                 {
-                    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[ind];
+                    m2m_localtime = (uint64_t *)m2m_localtime_start[ind];
                     if(*m2m_localtime != MAX_TIME) 
                     {
                         start[ind] = 1;
@@ -62,19 +61,14 @@ M2M_ERR_T m2m_time_init()
                     }
                 }
             }
-            M2M_DBG(level, MESSAGE, "[ZC]count = %d",count);
         }
-        M2M_DBG(level, MESSAGE, "ZC Exit while() loop ...");
         *action_probe = 1;
         
     }
     else
     {
-        M2M_DBG(level, MESSAGE, "Other Enter while() loop ...");
-        while(*action_probe != 1);
-            //usleep(SLEEP_TIME * 10);
+        while(*action_probe != 1){}
         sleep(1);
-        M2M_DBG(level, MESSAGE, "Other Exit while() loop ...");
     }
 
     M2M_DBG(level, MESSAGE, "Exit m2m_time_init() ...");
@@ -87,7 +81,7 @@ M2M_ERR_T m2m_time_exit()
     volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, MESSAGE, "Enter m2m_time_exit() ...");
 
-    m2m_localtime = (uint64_t *)(uintptr_t)m2m_localtime_start[GlobalVND.DeviceID];
+    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
     //avoid block other device when they still running
     *m2m_localtime = MAX_TIME - 1;
@@ -122,7 +116,7 @@ uint64_t time_sync()
         if(neighbor_end)
             for(ind = 0; ind < end_count; ind++)
             {
-                nt_ptr = (uint64_t *)(uintptr_t)m2m_localtime_start[neighbor_end_list[ind]];
+                nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_end_list[ind]];
                 if(*nt_ptr == MAX_TIME)
                     warmup = 1;
                 else if(tmp_time > *nt_ptr)
@@ -131,7 +125,7 @@ uint64_t time_sync()
         else
             for(ind = 0; ind < router_count; ind++)
             {
-                nt_ptr = (uint64_t *)(uintptr_t)m2m_localtime_start[neighbor_router_list[ind]];
+                nt_ptr = (uint64_t *)m2m_localtime_start[neighbor_router_list[ind]];
                 if(*nt_ptr == MAX_TIME)
                     warmup = 1;
                 else if(tmp_time > *nt_ptr)
@@ -232,7 +226,8 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
 
     }
         M2M_DBG(level, MESSAGE, "latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms * 1000000.0));
-    return (uint64_t)(latency_ms* 1000000.0);
+    //return (uint64_t)(latency_ms* 1000000.0);
+    return (uint64_t)(544000);
 }
 
 static inline int ack_retry(int node_from, int node_to)

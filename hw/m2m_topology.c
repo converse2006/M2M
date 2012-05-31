@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"

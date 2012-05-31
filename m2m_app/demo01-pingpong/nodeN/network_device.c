@@ -93,7 +93,7 @@ int Network_Recv(char* message, char* NetworkType)
     packet.DataAddress = (uint32_t)&message[0];
     addr = DeviceOpen(sizeof(net_recv), 0);
     int PA = (int)(&packet);
-    memcpy(addr + 8, &PA, sizeof(int));
+    //memcpy(addr + 8, &PA, sizeof(int));
     return 1;
 }
 
@@ -109,7 +109,7 @@ int Network_Send(unsigned int ReceiverID, char* message, char* NetworkType)
 
     addr = DeviceOpen(sizeof(net_send), 0);
     int PA = (int)(&packet);
-    memcpy(addr+4,&PA,sizeof(int));
+    //memcpy(addr+4,&PA,sizeof(int));
     return 1;
 }
 

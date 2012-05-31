@@ -24,7 +24,8 @@ typedef struct m2m_HQ_meta
 {
     volatile unsigned int producer;          //4 Bytes
     volatile unsigned int consumer;          //4 Bytes
-} m2m_HQ_meta_t;                             //Total 8 Bytes
+    volatile unsigned int pad[6]             //24Bytes
+} m2m_HQ_meta_t;                             //Total 32 Bytes
 
 //Header Queue control flag for small scheme
 typedef struct m2m_HQ_cf

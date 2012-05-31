@@ -4,7 +4,7 @@
 
 #include "m2m.h" 
 
-#define x86_SHM_KEY                         5566
+#define x86_SHM_KEY                         1111
 //DATA BUFFER
 #define DATA_BUFFER_ENTRY_SIZE              4096  
 #define DATA_BUFFER_ENTRY_NUM               4
@@ -18,8 +18,7 @@
 #define HEADER_QUEUE_ENTRY_SIZE             128
 #define HEADER_QUEUE_ENTRY_NUM              4
 #define HEADER_QUEUE_SIZE                   (HEADER_QUEUE_ENTRY_NUM * HEADER_QUEUE_ENTRY_SIZE)
-#define HEADER_QUEUE_METADATA_ENTRY_SIZE    (4 + 4)     //ProducerInd(4Bytes) + ConsumerInd(4Bytes)
-#define HEADER_QUEUE_METADATA_SIZE          (HEADER_QUEUE_METADATA_ENTRY_SIZE)
+#define HEADER_QUEUE_METADATA_SIZE          (4 + 4 + 24)     //ProducerInd(4Bytes) + ConsumerInd(4Bytes)
 #define TOTAL_HEADER_QUEUE_SIZE             (HEADER_QUEUE_SIZE + HEADER_QUEUE_METADATA_SIZE)
 
 //HEADER QUEUE CONTROL FLAG

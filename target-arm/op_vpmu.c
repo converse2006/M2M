@@ -1,4 +1,10 @@
 /* paslab : helper to caclulate cache reference */
+#ifdef CONFIG_VND
+#include "m2m.h"
+extern VND GlobalVND;
+extern long m2m_localtime_start[MAX_NODE_NUM];
+#endif
+
 void HELPER(dinero_access)(uint32_t addr,uint32_t rw, uint32_t size)
 {
 	if(VPMU_enabled)
@@ -269,6 +275,10 @@ void HELPER(vpmu_calculate)(void *opaque)
                                             + extra_tb_info->store_count);
             }
         }
+#ifdef CONFIG_VND
+        volatile uint64_t *m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+        *m2m_localtime = vpmu_estimated_execution_time_ns();
+#endif
 	}
 }
 

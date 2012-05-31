@@ -1,8 +1,37 @@
 #ifndef _M2M_INTERNAL_H_
 #define _M2M_INTERNAL_H_
 
+#include <stdio.h>
 #include "m2m.h"
 #include "m2m_route_processor.h"
+
+#define M2MDEBUG 
+#ifdef M2MDEBUG
+#include <assert.h>
+#define M2M_DEBUG_LEVEL 2
+
+#define M2M_DBG(level, CATEGORY, str, ...) \
+    M2M_DEBUG_##CATEGORY(level, str, ##__VA_ARGS__)
+
+#define M2M_DEBUG_MESSAGE(level, str, ...) \
+    if(level <= M2M_DEBUG_LEVEL) \
+        fprintf(stderr, "+[M2M DBG] %s:%.3d: " str "\n", __FILE__,__LINE__, ##__VA_ARGS__);
+
+#define M2M_DEBUG_GENERAL(level, str, ...) \
+    if(level <= M2M_DEBUG_LEVEL) \
+        fprintf(stderr, "+[M2M DBG] " str "\n", ##__VA_ARGS__);
+
+#define M2M_DEBUG_ASSERT(level, str, ...) \
+    if (level <= M2M_DEBUG_LEVEL) \
+        assert((str));
+#else
+
+#define M2M_DBG(level, CATEGORY, str, ...)
+#define M2M_DEBUG_MESSAGE(level, str, ...)
+#define M2M_DEBUG_GENERAL(level, str, ...)
+#define M2M_DEBUG_ASSERT(level, str, ...)
+
+#endif
 // ==== "CONSTRUCTOR" CALLS
 extern M2M_ERR_T m2m_topology_init(int);
 extern M2M_ERR_T m2m_mm_init();

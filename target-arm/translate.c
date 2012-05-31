@@ -18,6 +18,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -45,6 +46,7 @@
 #define ENABLE_ARCH_7     arm_feature(env, ARM_FEATURE_V7)
 
 #define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
+
 
 /* internal defines */
 typedef struct DisasContext {
@@ -118,6 +120,8 @@ static TCGv_i64 cpu_F0d, cpu_F1d;
 
 #ifdef CONFIG_VPMU
 #include "vpmu_insn_ticks.c"
+
+
 #endif
 
 /* initialize TCG globals.  */

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"
@@ -13,7 +14,7 @@ extern VND GlobalVND;
 
 M2M_ERR_T m2m_mm_init()
 {
-    int level = 2;
+    int level = 4;
     M2M_DBG(level, MESSAGE, "Enter m2m_mm_init() ...");
     M2M_ERR_T rc = M2M_SUCCESS;
     key_t key = x86_SHM_KEY; 
@@ -29,7 +30,7 @@ M2M_ERR_T m2m_mm_init()
     M2M_DBG(level, MESSAGE, "Total shared memory size = %llu", SHM_SIZE);
 
     // get the shared memory id
-    if((shmid = shmget(key,(SHM_SIZE+100),IPC_CREAT | 0666)) < 0)
+    if((shmid = shmget(key,SHM_SIZE,IPC_CREAT | 0666)) < 0)
     {perror("shmget failed");   exit(-1);}
 
     // Attach the segment to data space
@@ -38,7 +39,7 @@ M2M_ERR_T m2m_mm_init()
 
 
     shm_address_location = (long)shm_address;
-    M2M_DBG(level, MESSAGE,"Shared Memory Start addr = %ld \n", shm_address_location);
+    M2M_DBG(level, MESSAGE,"Shared Memory Start addr = %lx \n", shm_address_location);
 
     //Usage: Use to check every device is correctly mapping on shared memory
     /*
@@ -61,7 +62,7 @@ M2M_ERR_T m2m_mm_init()
 
 M2M_ERR_T m2m_mm_exit()
 {
-    int level = 2;
+    int level = 4;
     int errno;
     struct shmid_ds *shmid_ds=NULL;
     M2M_DBG(level, MESSAGE, "Enter m2m_mm_exit() ...");
