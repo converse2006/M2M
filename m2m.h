@@ -16,7 +16,7 @@
 /*------------------------------------------------------------*/
 /*  Virtual Network Device                                    */
 /*------------------------------------------------------------*/
-#define VND_BASE_ADDR 0xe0000000
+#define VND_BASE_ADDR 0xf0004000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
 #define ROUTER_RFDx
 #define MAX_TIME (-1)
@@ -31,8 +31,7 @@ typedef struct VND{
     int Neighbors[8];
     int NeighborNum;
     long Shared_memory_address;
-    uint64_t ND_power;
-    uint64_t ND_localclock;
+    uint64_t TotalTransTime;
 }VND;
 
 /*typedef struct DeviceStruct{
@@ -59,7 +58,7 @@ typedef enum
 
 //Debugging
 
-#define M2M_SHOWINFO          //Used to show map info 
+#define M2M_SHOWINFOx          //Used to show map info 
 
 /*------------------------------------------------------------*/
 /*  System V IPC shared memory                                */

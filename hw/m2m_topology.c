@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"
@@ -53,7 +54,11 @@ static M2M_ERR_T node_infofetch(int DeviceID)
     int index;
     GlobalVND.DeviceID = DeviceID;
     pFile = fopen("external/qemu-paslab/m2m_app/topology.conf","r");
-    if(pFile == NULL) {fputs("File topology.conf open error",stderr); exit(0);}
+    if(pFile == NULL)
+    {
+        fputs("File topology.conf open error",stderr);
+        exit(0);
+    }
     if(fgets(info, 40, pFile) == NULL) //Fetch TotalDevice Number
     {
         fprintf(stderr,"fgets error!\n");

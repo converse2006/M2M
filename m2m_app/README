@@ -12,22 +12,22 @@ Note: When push app into emulator, just run one emulator
   and waiting for boot up
 
 4.Execute application
+
+Case 1: Ping Pong Test (demo01-pingpong)
 Usage: ./data/vnd_api #DeviceNum
+./push.sh   //Compile file and put execution file into dir /data
 ./data/vnd_api 1
 ./data/vnd_api 2
 ./data/vnd_api 3
 ./data/vnd_api 4
-./data/vnd_api 5
-./data/vnd_api 6
-./data/vnd_api 7
-./data/vnd_api 8
-./data/vnd_api 9
-./data/vnd_api 10
-./data/vnd_api 11
-./data/vnd_api 12
-./data/vnd_api 13
-./data/vnd_api 14
-./data/vnd_api 15
-./data/vnd_api 16
+
+Case 2: JPEG picture transmission (demo02-filetrans)
+Describe: Device2 tranfer lin.jpeg to Device1 and Device1 write to file out.jpeg
+Hit: Use "adb -s emulator-5554 pull data/out.jpeg ." check data correct
+
+./push.sh   //Compile file and put source jpeg file into device2 
+            //and execution file to each device 
+cd data;./vnd_api 1 lin.jpeg out.jpeg; cd ../
+cd data;./vnd_api 2 lin.jpeg out.jpeg; cd ../
 
 

@@ -91,6 +91,7 @@ int Network_Recv(char* message, char* NetworkType)
     packet.SenderID = -1;
     bzero(message, PACKETSIZE);
     packet.DataAddress = (uint32_t)&message[0];
+
     int PA = (int)(&packet);
     memcpy(vnd_addr + 8, &PA, sizeof(int));
     return 1;
@@ -99,14 +100,14 @@ int Network_Recv(char* message, char* NetworkType)
 int Network_Send(unsigned int ReceiverID, char* message, char* NetworkType)
 {
     net_send packet;
-    //printf("Message size = %d\n",strlen(message));
+    printf("Message size = %d\n",strlen(message));
     packet.ReceiverID = ReceiverID;
     packet.DataAddress = (uint32_t)&message[0];
-    packet.DataSize = strlen(message);
+    packet.DataSize = PACKETSIZE;//strlen(message);
     //ShowPacketInfo(packet);
 
     int PA = (int)(&packet);
-    memcpy(vnd_addr+4,&PA,sizeof(int));
+    memcpy(vnd_addr + 4, &PA, sizeof(int));
     return 1;
 }
 

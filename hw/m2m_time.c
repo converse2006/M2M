@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"
@@ -77,13 +79,15 @@ M2M_ERR_T m2m_time_init()
 
 M2M_ERR_T m2m_time_exit()
 {
-    int level = 2;
+    int level = 0;
     volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, MESSAGE, "Enter m2m_time_exit() ...");
 
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
     //avoid block other device when they still running
+    M2M_DBG(level, MESSAGE, "Program finish time: %llu", *m2m_localtime);
+    M2M_DBG(level, MESSAGE, "Program total transmission time: %llu", GlobalVND.TotalTransTime);
     *m2m_localtime = MAX_TIME - 1;
 
     M2M_DBG(level, MESSAGE, "Exit m2m_time_exit() ...");
@@ -153,7 +157,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
     if(!strcmp(networktype, "zigbee"))
     {
         int ack_retry_num, cdma_retry_num;
-        int ind,hops;
+        int ind;
         unsigned int FromDeviceID = msg_info->ForwardID;
         unsigned int ToDeviceID = next_hop_ID;
 
@@ -164,7 +168,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
         for(ind = 0; ind <= ack_retry_num; ind++) //retry for ACK failed
         {
             int ind2;
-            cdma_retry_num = 1; //rand()% 5 +1; //worst case: 4+1
+            cdma_retry_num = rand()% 5 +1; //worst case: 4+1
             //fprintf(stderr, "%d->%d cdma retry num = %d\n", FromDeviceID, ToDeviceID, cdma_retry_num);
             //CSMA-CA and retries
             for(ind2 = 0; ind2 < cdma_retry_num; ind2++)
@@ -227,19 +231,19 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID, ch
     }
         M2M_DBG(level, MESSAGE, "latency(ms) = %f (ns)= %llu\n", latency_ms, (uint64_t)(latency_ms * 1000000.0));
     //return (uint64_t)(latency_ms* 1000000.0);
-    return (uint64_t)(544000);
+    return (uint64_t)(5440000);
 }
 
 static inline int ack_retry(int node_from, int node_to)
 {
     int retry_num = 0;
     //Best Case:
-    retry_num = 0;
+    //retry_num = 0;
 
     //Worst Case:
     //retry_num = 3;
 
     //Random Case:
-    //retry_num = rand()%4; 
+    retry_num = rand()%4; 
     return retry_num;
 }

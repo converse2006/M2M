@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"
@@ -30,31 +31,34 @@ M2M_ERR_T m2m_mm_init()
     M2M_DBG(level, MESSAGE, "Total shared memory size = %llu", SHM_SIZE);
 
     // get the shared memory id
-    if((shmid = shmget(key,SHM_SIZE,IPC_CREAT | 0666)) < 0)
-    {perror("shmget failed");   exit(-1);}
+    if(GlobalVND.DeviceID == 1)
+    {
+        if((shmid = shmget(key, SHM_SIZE + 1000, IPC_CREAT | 0666)) < 0)
+        {
+            perror("shmget failed");
+            exit(-1);
+        }
+    }
+    else
+    {
+        if((shmid = shmget(key, SHM_SIZE + 1000, 0666)) < 0)
+        {
+            perror("shmget failed");
+            exit(-1);
+        }
+    }
+
 
     // Attach the segment to data space
     if((shm_address = shmat(shmid,NULL,0)) == (char *) -1) 
-    {perror("shmat failed");    exit(-1);}
+    {
+        perror("shmat failed");
+        exit(-1);
+    }
 
 
     shm_address_location = (long)shm_address;
     M2M_DBG(level, MESSAGE,"Shared Memory Start addr = %lx \n", shm_address_location);
-
-    //Usage: Use to check every device is correctly mapping on shared memory
-    /*
-    if(!strcmp(GlobalVND.DeviceType,"ZC")) //Force Coordinator write data on start addr
-    {
-        int *shd = (int *)shm_address_location;
-        *shd=9527;
-    }
-    else //Other device read the value,check value is equal or not
-    {
-        int *shd = (int *)shm_address_location;
-        fprintf(stderr,"SHARED MEM value = %d\n",*shd);
-    }
-    while(1); //Force device stop here
-    */
 
     M2M_DBG(level, MESSAGE, "Exit m2m_mm_init() ...");
     return rc;

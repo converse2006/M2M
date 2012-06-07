@@ -23,7 +23,7 @@ long m2m_remote_hq_buffer_start[NODE_MAX_LINKS][HEADER_QUEUE_ENTRY_NUM];//remote
 
 M2M_ERR_T m2m_copy_to_dbp(void *data, int sizeb,int DeviceID)
 {
-    volatile m2m_HQ_meta_t *local_meta_ptr = NULL; 
+    //volatile m2m_HQ_meta_t *local_meta_ptr = NULL; 
 
     return M2M_SUCCESS;
 }
@@ -168,7 +168,7 @@ M2M_ERR_T m2m_dbp_init()
                 if(NODE_MAP[GlobalVND.Neighbors[index]][index_ent] != 0)
                     count++;
             //fprintf(stderr, "%d header queue in Neighbor %d(%s)'s offset is:%d\n", GlobalVND.DeviceID, \
-                    GlobalVND.Neighbors[index], NODE_TYPE[GlobalVND.Neighbors[index]], count);
+            //        GlobalVND.Neighbors[index], NODE_TYPE[GlobalVND.Neighbors[index]], count);
 
             if(!strcmp(NODE_TYPE[GlobalVND.Neighbors[index]], "ZED"))
             {
