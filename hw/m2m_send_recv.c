@@ -265,12 +265,15 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 if(msg_info->TransTime == 0) 
                 {
 #ifdef M2M_LOGFILE
-                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    sprintf(tmptext,"ReceiverID: %3d ", msg_info->ReceiverID);
                     strcat(logtext, tmptext);
-                    sprintf(tmptext,"Transmission Fail\n");
+                    sprintf(tmptext,"Transmission Fail");
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"FailLatency: %15llu\n", fail_latency);
                     strcat(logtext, tmptext);
                     fputs(logtext, outFile);
 #endif
+                    M2M_DBG(level, MESSAGE, "fail_latency = %llu",fail_latency);
                    GlobalVND.TotalTransTimes += fail_latency;
                    GlobalVPMU.ticks += (fail_latency)*(GlobalVPMU.target_cpu_frequency / 1000.0);
                    *m2m_localtime = time_sync();
@@ -320,13 +323,13 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 M2M_DBG(level, MESSAGE,"[%d]Recevier get header ... transmission time = %llu",GlobalVND.DeviceID,\
                                                                          (hq_conflag_ptr->transtime-time_sync()));
 #ifdef M2M_LOGFILE
-                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    sprintf(tmptext,"ReceiverID: %3d ", msg_info->ReceiverID);
                     strcat(logtext, tmptext);
-                    sprintf(tmptext,"PacketSize: %d ", msg_info->PacketSize);
+                    sprintf(tmptext,"PacketSize: %4d ", msg_info->PacketSize);
                     strcat(logtext, tmptext);
-                    sprintf(tmptext,"SendTime: %llu ", msg_info->SendTime);
+                    sprintf(tmptext,"SendTime   : %15llu ", msg_info->SendTime);
                     strcat(logtext, tmptext);
-                    sprintf(tmptext,"TransmissionTime: %llu\n", (hq_conflag_ptr->transtime-time_sync()));
+                    sprintf(tmptext,"TransmissionTime: %15llu\n", (hq_conflag_ptr->transtime-time_sync()));
                     strcat(logtext, tmptext);
                     fputs(logtext, outFile);
 #endif
@@ -339,7 +342,7 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 else
                 {
 #ifdef M2M_LOGFILE
-                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    sprintf(tmptext,"ReceiverID: %3d ", msg_info->ReceiverID);
                     strcat(logtext, tmptext);
                     sprintf(tmptext,"Transmission Fail\n");
                     strcat(logtext, tmptext);
@@ -434,13 +437,13 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
 #ifdef M2M_LOGFILE
         char logtext[200] = "[Recv] ";
         char tmptext[100];
-        sprintf(tmptext,"SenderID: %d ", localHQe_ptr->SenderID);
+        sprintf(tmptext,"SenderID  : %3d ", localHQe_ptr->SenderID);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"PacketSize: %d ", localHQe_ptr->PacketSize);
+        sprintf(tmptext,"PacketSize: %4d ", localHQe_ptr->PacketSize);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ArrivalTime: %llu ",(localHQe_ptr->SendTime+localHQe_ptr->TransTime));
+        sprintf(tmptext,"ArrivalTime: %15llu ",(localHQe_ptr->SendTime+localHQe_ptr->TransTime));
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ReceiveTime: %llu\n",*m2m_localtime);
+        sprintf(tmptext,"ReceiveTime     : %15llu\n",*m2m_localtime);
         strcat(logtext, tmptext);
         fputs(logtext, outFile);
 #endif

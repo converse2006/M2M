@@ -8,7 +8,7 @@
 //Communication Time Estimation Parameters
 #define MaxPayLoad         84   //Bytes
 #define Percentage         100
-#define ChannelBusyRate    0.5 
+#define ChannelBusyRate    0.6 
 #define minBE              3
 #define maxBE              5
 #define MaxCSMABackoffs    4

@@ -375,17 +375,17 @@ static void *m2m_route_processor_create(void *args)
 
         char logtext[200] = "[Route] ";
         char tmptext[100];
-        sprintf(tmptext,"SenderID: %d ", FROM_packet->SenderID);
+        sprintf(tmptext,"SenderID: %3d ", FROM_packet->SenderID);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ForwardID: %d ", GlobalVND.DeviceID);
+        sprintf(tmptext,"ForwardID: %3d ", GlobalVND.DeviceID);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ReceiverID: %d ", FROM_packet->ReceiverID);
+        sprintf(tmptext,"ReceiverID: %3d ", FROM_packet->ReceiverID);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"PacketSize: %d ", FROM_packet->PacketSize);
+        sprintf(tmptext,"PacketSize: %4d ", FROM_packet->PacketSize);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ArrivalTime: %llu ",(FROM_packet->SendTime + FROM_packet->TransTime));
+        sprintf(tmptext,"ArrivalTime: %15llu ",(FROM_packet->SendTime + FROM_packet->TransTime));
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ReceiveTime: %llu\n", router_localtime);
+        sprintf(tmptext,"ReceiveTime: %15llu\n", router_localtime);
         strcat(logtext, tmptext);
         fputs(logtext, routeoutFile);
 #endif
@@ -403,6 +403,7 @@ static void *m2m_route_processor_create(void *args)
 
 
             //NOTE: Due to packet send to device itself,just forward packet without any packet modification
+            //But Arrival time need to depend on router receive time to change transmission time
             if(router_localtime > (FROM_packet-> SendTime + FROM_packet->TransTime))
                 FROM_packet->TransTime += router_localtime - (FROM_packet-> SendTime + FROM_packet->TransTime);
             else
@@ -440,7 +441,7 @@ static void *m2m_route_processor_create(void *args)
 
             //Update sender/receiver local time
             volatile m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
-            hq_conflag->transtime = FROM_packet->SendTime + FROM_packet->TransTime;
+            hq_conflag->transtime = router_localtime;
             hq_conflag->dataflag  = 0;
             M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %llu", hq_conflag->transtime);
             M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
@@ -482,7 +483,8 @@ static void *m2m_route_processor_create(void *args)
                     FROM_packet->SendTime = FROM_packet-> SendTime + FROM_packet->TransTime;
             }
             uint64_t fail_latency;
-            FROM_packet->TransTime = transmission_latency((m2m_HQe_t *)FROM_packet, packet_next, &fail_latency, "zigbee");
+            if(FROM_packet->SenderID != GlobalVND.DeviceID)
+                FROM_packet->TransTime = transmission_latency((m2m_HQe_t *)FROM_packet, packet_next, &fail_latency, "zigbee");
             M2M_DBG(level, MESSAGE,"FROM_packet->TransTime = %d",FROM_packet->TransTime);
             
             //When transmission time calculate is fail transmission,
@@ -547,7 +549,7 @@ static void *m2m_route_processor_create(void *args)
                 M2M_DBG(level, MESSAGE,"m2m_hq_conflag_start[%d] = %lx", FROM_packet->SenderID, \
                                                                          m2m_hq_conflag_start[FROM_packet->SenderID]);
                 volatile m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
-                hq_conflag->transtime = FROM_packet-> SendTime + FROM_packet->TransTime;
+                hq_conflag->transtime = router_localtime;
                 hq_conflag->dataflag  = 0;
                 M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %llu", hq_conflag->transtime);
                 M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
@@ -561,7 +563,7 @@ static void *m2m_route_processor_create(void *args)
 #ifdef M2M_LOGFILE
         char logtext[200] = "[Route] Deliver Success ";
         char tmptext[100];
-        sprintf(tmptext,"Receiver receive Time: %llu\n", router_localtime);
+        sprintf(tmptext,"Receiver receive Time: %15llu\n", router_localtime);
         strcat(logtext, tmptext);
         fputs(logtext, routeoutFile);
 #endif
@@ -572,7 +574,7 @@ static void *m2m_route_processor_create(void *args)
 #ifdef M2M_LOGFILE
         char logtext[200] = "[Route] Deliver Fail ";
         char tmptext[100];
-        sprintf(tmptext,"Router local Time: %llu\n", router_localtime);
+        sprintf(tmptext,"Router local Time: %15llu\n", router_localtime);
         strcat(logtext, tmptext);
         fputs(logtext, routeoutFile);
 #endif
