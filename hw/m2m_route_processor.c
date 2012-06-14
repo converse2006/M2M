@@ -30,7 +30,13 @@ extern long m2m_hq_meta_start[NODE_MAX_LINKS + 2];
 extern long m2m_hq_buffer_start[NODE_MAX_LINKS + 2][HEADER_QUEUE_ENTRY_NUM];
 extern long m2m_hq_conflag_start[MAX_NODE_NUM];
 
+#ifdef M2M_LOGFILE
+FILE *routeoutFile;
+#endif
+
 uint64_t time_sync();
+
+
 //-------------dijkstra------------------
 #include "dijkstra.h"
 #define GRAPHSIZE MAX_NODE_NUM
@@ -99,6 +105,22 @@ static void *m2m_route_processor_create(void *args)
     volatile m2m_HQe_t     *packet_ptr;
     M2M_DBG(level, MESSAGE, "Enter m2m_route_processor_create ...");
 
+#ifdef M2M_LOGFILE
+    char location[100] = "NetLogs/Routedevice";
+    char post[]= ".txt";
+    char devicenum[20];
+    sprintf(devicenum, "%d", GlobalVND.DeviceID);
+    strcat( location, devicenum);
+    strcat( location, post);
+    M2M_DBG(level, GENERAL, "Logging file at %s\n", location);
+    routeoutFile = fopen(location, "w");
+    if(routeoutFile == NULL)
+    {
+        fprintf(stderr, "Logging File open error!\n");
+        exit(0);
+    }
+#endif
+
     //enable async cancellation
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -165,7 +187,7 @@ static void *m2m_route_processor_create(void *args)
         uint64_t packet_sendtime = MAX_TIME;
         unsigned int packet_from = -1;
         unsigned int packet_next = -1;
-        unsigned int packet_ind = -1;
+        volatile unsigned int packet_ind = -1;
 
         //Find Current Earliest Packet
         for(index = 0; index < search_num; index++)
@@ -336,8 +358,9 @@ static void *m2m_route_processor_create(void *args)
         }
 
         M2M_DBG(level, MESSAGE, "Routing Processor forward packet from %d -> %d",packet_from ,packet_next);
-        int count = 0;
+        volatile int count = 0;
         int find_flag = 0;
+        int transfail = 0;
         volatile m2m_HQ_meta_t   *FROM_meta_ptr;
         volatile m2m_HQe_t       *FROM_packet;
         volatile long            *FROM_packet_ptr;
@@ -345,6 +368,27 @@ static void *m2m_route_processor_create(void *args)
         volatile long            *TO_packet_ptr;
 
         M2M_DBG(level, MESSAGE,"[%d]The earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet_To = %d\n Packet Arrivel Time = %10llu\n Packet SendTime     = %10llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_next, packet_mintime, packet_sendtime);
+
+#ifdef M2M_LOGFILE
+        FROM_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[packet_ind];
+        FROM_packet = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
+
+        char logtext[200] = "[Route] ";
+        char tmptext[100];
+        sprintf(tmptext,"SenderID: %d ", FROM_packet->SenderID);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ForwardID: %d ", GlobalVND.DeviceID);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ReceiverID: %d ", FROM_packet->ReceiverID);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"PacketSize: %d ", FROM_packet->PacketSize);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ArrivalTime: %llu ",(FROM_packet->SendTime + FROM_packet->TransTime));
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ReceiveTime: %llu\n", router_localtime);
+        strcat(logtext, tmptext);
+        fputs(logtext, routeoutFile);
+#endif
 
 
         if(packet_next == GlobalVND.DeviceID)
@@ -437,7 +481,40 @@ static void *m2m_route_processor_create(void *args)
                 if(FROM_packet->SenderID != GlobalVND.DeviceID)
                     FROM_packet->SendTime = FROM_packet-> SendTime + FROM_packet->TransTime;
             }
-            FROM_packet->TransTime = transmission_latency((m2m_HQe_t *)FROM_packet, packet_next, "zigbee");
+            uint64_t fail_latency;
+            FROM_packet->TransTime = transmission_latency((m2m_HQe_t *)FROM_packet, packet_next, &fail_latency, "zigbee");
+            M2M_DBG(level, MESSAGE,"FROM_packet->TransTime = %d",FROM_packet->TransTime);
+            
+            //When transmission time calculate is fail transmission,
+            //router need to signal original sender that transmission fail
+            if(FROM_packet->TransTime == 0)
+            {
+                M2M_DBG(level, MESSAGE,"transmission fail");
+                transfail = 1;
+                if(FROM_packet->EntryNum == -1) //Small Communication Scheme
+                {
+                    //Update sender control flag to index trans fail
+                    volatile m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
+                    hq_conflag->transtime = FROM_packet-> SendTime + &fail_latency;
+                    router_localtime = FROM_packet-> SendTime + &fail_latency;
+                    hq_conflag->dataflag  = 44; //Signal sender transmission fail
+                    M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
+                    M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %d",hq_conflag->transtime);
+                    
+                    //Remove header in header queue
+                    FROM_meta_ptr->consumer = (FROM_meta_ptr->consumer + 2) % HEADER_QUEUE_ENTRY_NUM;
+                }
+                else //Large Communication Scheme
+                {
+                    //FIXME
+                }
+
+            }
+            else
+            {
+                router_localtime = FROM_packet-> SendTime + FROM_packet->TransTime;
+            }
+            if(transfail != 1) {
 
             if(FROM_packet->EntryNum == -1) //Small Communication Scheme
             {
@@ -475,8 +552,33 @@ static void *m2m_route_processor_create(void *args)
                 M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %llu", hq_conflag->transtime);
                 M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
             }
+
+            } //if(transfail != 1)
         }
+
+        if(transfail != 1)
+        {
+#ifdef M2M_LOGFILE
+        char logtext[200] = "[Route] Deliver Success ";
+        char tmptext[100];
+        sprintf(tmptext,"Receiver receive Time: %llu\n", router_localtime);
+        strcat(logtext, tmptext);
+        fputs(logtext, routeoutFile);
+#endif
             M2M_DBG(level, MESSAGE, "PACKET TO/FROM:\n TO_packet_addr = %lx\n FROM_packet_addr = %lx\n Packet Size = %d\n SendTime = %llu\n TransTime = %llu\n", TO_packet_ptr, FROM_packet_ptr, FROM_packet->PacketSize, FROM_packet->SendTime, FROM_packet->TransTime);
+        }
+        else
+        {
+#ifdef M2M_LOGFILE
+        char logtext[200] = "[Route] Deliver Fail ";
+        char tmptext[100];
+        sprintf(tmptext,"Router local Time: %llu\n", router_localtime);
+        strcat(logtext, tmptext);
+        fputs(logtext, routeoutFile);
+#endif
+            M2M_DBG(level, MESSAGE, "PACKET FROM %d TO %d Transmission Fail on %d", FROM_packet->SenderID, FROM_packet->ReceiverID, FROM_packet->ForwardID);
+        }
+
 
 
     }
@@ -533,6 +635,7 @@ M2M_ERR_T m2m_route_processor_init()
             fprintf(stderr, "%d ",neighbor_router_list[ind]);
         fprintf(stderr, "\n\n");
 #endif
+
         //Create routing thread
         rc = pthread_create(&route_processor,NULL,m2m_route_processor_create,NULL);
     }
@@ -560,6 +663,9 @@ M2M_ERR_T m2m_route_processor_exit()
     //cancel the service processor
     if(strcmp(GlobalVND.DeviceType, "ZED"))
     {
+#ifdef M2M_LOGFILE
+        fclose(routeoutFile);
+#endif
         pthread_cancel(route_processor);
         pthread_join(route_processor,NULL);
     }

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "m2m.h"
 #include "m2m_internal.h"
@@ -24,7 +25,9 @@ extern long m2m_hq_conflag_start[MAX_NODE_NUM];
 M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQe_t *msg_info,int scheme);
 M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info);
 
-//local time
+#ifdef M2M_LOGFILE
+FILE *outFile; //For log communication pattern
+#endif
 
 M2M_ERR_T m2m_send_recv_init()
 {
@@ -35,7 +38,7 @@ M2M_ERR_T m2m_send_recv_init()
     int ind;
     M2M_DBG(level, GENERAL, "Enter m2m_send_recv_init() ...");
 
-    GlobalVND.TotalTransTime = 0;
+    GlobalVND.TotalTransTimes = 0;
 
     //Initialize HQ control flag for small size
     //Due to small size communication without DB, so we can't use DB meta control flag
@@ -104,6 +107,23 @@ M2M_ERR_T m2m_send_recv_init()
         hq_p->consumer = 0;
     }
 
+#ifdef M2M_LOGFILE
+    char location[100] = "NetLogs/device";
+    char post[]= ".txt";
+    char devicenum[20];
+    //itoa(GlobalVND.DeviceID, devicenum, 10);
+    sprintf(devicenum, "%d", GlobalVND.DeviceID);
+    strcat( location, devicenum);
+    strcat( location, post);
+    M2M_DBG(level, GENERAL, "Logging file at %s\n", location);
+    outFile = fopen(location, "w");
+    if(outFile == NULL)
+    {
+        fprintf(stderr, "Logging File open error!\n");
+        exit(0);
+    }
+#endif
+
     M2M_DBG(level, GENERAL, "Exit m2m_send_recv_init() ...");
     return M2M_SUCCESS;
 }
@@ -111,7 +131,7 @@ M2M_ERR_T m2m_send_recv_init()
 M2M_ERR_T m2m_send(void *src_data, int sizeb, int receiverID, int tag)
 {
     int level = 1;
-    M2M_ERR_T rc;
+    M2M_ERR_T rc =M2M_SUCCESS;
     volatile  m2m_HQe_t *msg;
     volatile  m2m_HQe_t m2m_msgbuf;
     M2M_DBG(level, MESSAGE, "Enter m2m_send() ...");
@@ -133,7 +153,7 @@ M2M_ERR_T m2m_send(void *src_data, int sizeb, int receiverID, int tag)
         M2M_DBG(level, MESSAGE, "[%d]Copying data to remote HQ ...", GlobalVND.DeviceID);
         do{
             rc = m2m_post_remote_msg(receiverID, src_data, sizeb, (m2m_HQe_t *)msg, SMALL);
-        }while(rc != M2M_SUCCESS);
+        }while(rc != M2M_TRANS_SUCCESS && rc != M2M_TRANS_FAIL);
     }
     else //Large communication scheme
     {
@@ -141,7 +161,10 @@ M2M_ERR_T m2m_send(void *src_data, int sizeb, int receiverID, int tag)
     }
     
     M2M_DBG(level, MESSAGE, "Exit m2m_send() ...");
-    return M2M_SUCCESS;
+    if(rc == M2M_TRANS_FAIL)
+        return M2M_TRANS_FAIL;
+    else
+        return M2M_TRANS_SUCCESS;
 }
 
 M2M_ERR_T m2m_recv(void *dst_data, int senderID, int tag)
@@ -179,6 +202,10 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
     int count = 0;
     int flag = 1;
     unsigned int next_hop_ID; 
+#ifdef M2M_LOGFILE
+    char logtext[200] = "[Send] ";
+    char tmptext[100];
+#endif
 
     M2M_DBG(level, MESSAGE, "Enter m2m_post_remote_msg() ...");
 
@@ -214,7 +241,7 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
     M2M_DBG(level, MESSAGE, "[%d]consumer address: %lx", GlobalVND.DeviceID, (long)(&(hq_meta_ptr->consumer)));
     M2M_DBG(level, MESSAGE, "[%d]Before producer = %d", GlobalVND.DeviceID, hq_meta_ptr->producer);
     M2M_DBG(level, MESSAGE, "[%d]Before consumer = %d", GlobalVND.DeviceID, hq_meta_ptr->consumer);*/
-
+    uint64_t fail_latency;
     //Start transmission
     switch(scheme)
     {
@@ -232,7 +259,25 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 msg_info->ForwardID = GlobalVND.DeviceID;
                 msg_info->EntryNum  = -1; //-1 impile small size message
                 msg_info->SendTime  = get_vpmu_time();
-                msg_info->TransTime = transmission_latency( (m2m_HQe_t *)msg_info, next_hop_ID, "zigbee");
+                msg_info->TransTime = transmission_latency( (m2m_HQe_t *)msg_info, next_hop_ID, &fail_latency, "zigbee");
+
+                //When transmission time calculate is fail transmission,
+                if(msg_info->TransTime == 0) 
+                {
+#ifdef M2M_LOGFILE
+                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"Transmission Fail\n");
+                    strcat(logtext, tmptext);
+                    fputs(logtext, outFile);
+#endif
+                   GlobalVND.TotalTransTimes += fail_latency;
+                   GlobalVPMU.ticks += (fail_latency)*(GlobalVPMU.target_cpu_frequency / 1000.0);
+                   *m2m_localtime = time_sync();
+                    M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
+                    M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
+                    return M2M_TRANS_FAIL;
+                }
 
                 M2M_DBG(level, MESSAGE, "[%d] Header packet:\n PacketSize = %d\n SenderID = %d\n ReceiverID = %d\n ForwardID = %d\n EntryNum = %d\n SendTime(ns)  = %10llu\n TransTime(ns) = %10llu\n", GlobalVND.DeviceID, msg_info->PacketSize, msg_info->SenderID, msg_info->ReceiverID, msg_info->ForwardID, msg_info->EntryNum, msg_info->SendTime, msg_info->TransTime);
 
@@ -261,28 +306,54 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 //M2M_DBG(level, MESSAGE, "[%d]After consumer = %d",GlobalVND.DeviceID, hq_meta_ptr->consumer);
 
                 //Wait for transtime
-                M2M_DBG(level, MESSAGE, "[CONVERSE]Waiting for [hq_conflag_ptr->dataflag != 1]\n");
+                M2M_DBG(level, MESSAGE, "[CONVERSE]Waiting for [hq_conflag_ptr->dataflag != 77]\n");
                 while(hq_conflag_ptr->dataflag == 77){}
                 M2M_DBG(level, MESSAGE,"[%d]hq_conflag_ptr->dataflag = %d",GlobalVND.DeviceID,hq_conflag_ptr->dataflag);
 
                 //FIXME the clock update need to consider different network type
                 //and CPU busy/idle
                 //ticks = ns * tick per ns
+                if(hq_conflag_ptr->dataflag != 44)
+                {
                 M2M_DBG(level, MESSAGE,"[%d]Packet Arrivel Time = %llu",GlobalVND.DeviceID,(hq_conflag_ptr->transtime));
                 M2M_DBG(level, MESSAGE,"[%d]Device Local Time = %llu",GlobalVND.DeviceID,(time_sync()));
                 M2M_DBG(level, MESSAGE,"[%d]Recevier get header ... transmission time = %llu",GlobalVND.DeviceID,\
                                                                          (hq_conflag_ptr->transtime-time_sync()));
-                /*M2M_DBG(level, MESSAGE,"[%d]Before time update after send()= %llu",GlobalVND.DeviceID,time_sync());
-                M2M_DBG(level, MESSAGE,"[%d]Before time_sync= %llu",GlobalVND.DeviceID,time_sync());
-                M2M_DBG(level, MESSAGE,"[%d]Before GlobalVPMU.ticks= %llu",GlobalVND.DeviceID,GlobalVPMU.ticks);*/
+#ifdef M2M_LOGFILE
+                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"PacketSize: %d ", msg_info->PacketSize);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"SendTime: %llu ", msg_info->SendTime);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"TransmissionTime: %llu\n", (hq_conflag_ptr->transtime-time_sync()));
+                    strcat(logtext, tmptext);
+                    fputs(logtext, outFile);
+#endif
                 
-                GlobalVND.TotalTransTime += (hq_conflag_ptr->transtime-time_sync());
-                GlobalVPMU.ticks += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
-                *m2m_localtime = time_sync();
+                   GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
+                   GlobalVPMU.ticks += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
+                   *m2m_localtime = time_sync();
+                    return M2M_TRANS_SUCCESS;
+                }
+                else
+                {
+#ifdef M2M_LOGFILE
+                    sprintf(tmptext,"ReceiverID: %d ", msg_info->ReceiverID);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"Transmission Fail\n");
+                    strcat(logtext, tmptext);
+                    fputs(logtext, outFile);
+#endif
+                   GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
+                   GlobalVPMU.ticks += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
+                   *m2m_localtime = time_sync();
+                    M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
+                    M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
+                    return M2M_TRANS_FAIL;
+                }
 
-                /*M2M_DBG(level, MESSAGE,"[%d]After GlobalVPMU.ticks= %llu",GlobalVND.DeviceID,GlobalVPMU.ticks);
-                M2M_DBG(level, MESSAGE,"[%d]After time_sync= %llu",GlobalVND.DeviceID,time_sync());
-                M2M_DBG(level, MESSAGE,"[%d]After time update after send() = %llu",GlobalVND.DeviceID,time_sync());*/
+
                    
             break;
         case LARGE:
@@ -308,10 +379,15 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
         hq_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS];
 
     //M2M_DBG(level, MESSAGE, "hq_meta_ptr->producer = %d hq_meta_ptr->consumer = %d", hq_meta_ptr->producer,hq_meta_ptr->consumer);
-
+    int producer = 0,consumer = 0;
     //M2M_DBG(level, MESSAGE, "[WHILE]Receiver waiting for packet in header queue");
     if(hq_meta_ptr->producer == hq_meta_ptr->consumer){
-        //usleep(1000);
+        /*if(producer != hq_meta_ptr->producer || consumer != hq_meta_ptr->consumer)
+        {
+            M2M_DBG(level, MESSAGE, "Pro = %d Con = %d", hq_meta_ptr->producer, hq_meta_ptr->consumer);
+            producer = hq_meta_ptr->producer;
+            consumer = hq_meta_ptr->consumer;
+        }*/
         return M2M_TRANS_NOT_READY;
     }
     M2M_DBG(level, MESSAGE, "Enter m2m_get_local_msg() ...");
@@ -354,6 +430,21 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
         //After finish recv(), resume device local time
         *m2m_localtime = tmp_time;
         hq_meta_ptr->consumer = (hq_meta_ptr->consumer + 2) % HEADER_QUEUE_ENTRY_NUM;
+
+#ifdef M2M_LOGFILE
+        char logtext[200] = "[Recv] ";
+        char tmptext[100];
+        sprintf(tmptext,"SenderID: %d ", localHQe_ptr->SenderID);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"PacketSize: %d ", localHQe_ptr->PacketSize);
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ArrivalTime: %llu ",(localHQe_ptr->SendTime+localHQe_ptr->TransTime));
+        strcat(logtext, tmptext);
+        sprintf(tmptext,"ReceiveTime: %llu\n",*m2m_localtime);
+        strcat(logtext, tmptext);
+        fputs(logtext, outFile);
+#endif
+
         /*M2M_DBG(level, MESSAGE, "[%d]After producer = %d", GlobalVND.DeviceID, hq_meta_ptr->producer);
         M2M_DBG(level, MESSAGE, "[%d]After consumer = %d", GlobalVND.DeviceID, hq_meta_ptr->consumer);*/
     }
@@ -385,7 +476,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     //ticks = ns * tick per ns
     if(*m2m_localtime < (localHQe_ptr->SendTime + localHQe_ptr->TransTime))
     {
-        GlobalVND.TotalTransTime += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime);
+        GlobalVND.TotalTransTimes += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime);
         GlobalVPMU.ticks += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime) * \
                             (GlobalVPMU.target_cpu_frequency / 1000.0);
     }
@@ -399,5 +490,17 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     M2M_DBG(level, MESSAGE,"[%d]After time update after send() = %llu",GlobalVND.DeviceID,*m2m_localtime);*/
 
     M2M_DBG(level, MESSAGE, "Exit m2m_get_local_msg() ...");
+    return M2M_SUCCESS;
+}
+M2M_ERR_T m2m_send_recv_exit()
+{
+    int level = 2;
+    M2M_DBG(level, GENERAL, "Enter m2m_send_recv_exit() ...");
+
+#ifdef M2M_LOGFILE
+    fclose(outFile);
+#endif
+
+    M2M_DBG(level, GENERAL, "Exit m2m_send_recv_exit() ...");
     return M2M_SUCCESS;
 }

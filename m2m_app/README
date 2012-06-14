@@ -29,5 +29,5 @@ Hit: Use "adb -s emulator-5554 pull data/out.jpeg ." check data correct
             //and execution file to each device 
 cd data;./vnd_api 1 lin.jpeg out.jpeg; cd ../
 cd data;./vnd_api 2 lin.jpeg out.jpeg; cd ../
-
+[Check] adb -s emulator-5554 pull /data/out.jpeg .
 

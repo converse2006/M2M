@@ -1,7 +1,7 @@
 #CC=arm-linux-uclibcgnueabi-gcc
 #CC=arm-linux-gcc
-CC=arm-none-linux-gnueabi-gcc
-ANDROIDCC=arm-none-linux-gnueabi-gcc
+CC=arm-none-linux-gnueabi-g++
+ANDROIDCC=arm-none-linux-gnueabi-g++
 CFLAGS=-static  #-march=armv4t
 #INCLUDE=-I /home/gkk886/pacduo_benchmark/linux-2.6-pac/include -I /home/gkk886/pacduo_benchmark/linux-2.6-pac/arch/arm/include
 

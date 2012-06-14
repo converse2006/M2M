@@ -10,6 +10,7 @@ int main(int argc, char **argv)
     int flag = 1;
     int range;
     int id;
+    int ret;
     char *buffer, *tmpbuffer;
     size_t result;
     char netbuff[PACKETSIZE+1] = "";
@@ -26,21 +27,21 @@ int main(int argc, char **argv)
     else
     {fprintf(stderr, "input format error\n"); exit(0);}
 
+    ret = Network_Init(id, "Zigbee", 5);
+
     printf("Devcie ID = %d\n", id);
     printf("Input file name = %s\n", infilename);
     printf("Output file name = %s\n", outfilename);
 
-    Network_Init(id, "Zigbee", 5);
     char get_char;
     int p = 0;
     int SendDevice;
     int SendSize;
     int sum = 0;
-    switch(id)
+
+    if(id == 1)
     {
-        case 1:
-                Network_Recv(netbuff, "Zigbee");
-                //strcpy(netbuff,"1:88651@");
+                ret = Network_Recv(netbuff, "Zigbee");
                 printf("netbuff content:[%s]\n",netbuff);
                 while(netbuff[ind] != '@')
                 {
@@ -72,7 +73,9 @@ int main(int argc, char **argv)
                 buffer = (char*) malloc(sizeof(char)*SendSize);
                 bzero(netbuff, PACKETSIZE);
                 strcpy(netbuff,"OK");
-                Network_Send(2, netbuff, "Zigbee");
+                do{
+                    ret = Network_Send(2, netbuff, "Zigbee");
+                }while(ret == 0);
 
                 ind = 0;
                 range = PACKETSIZE;
@@ -81,10 +84,9 @@ int main(int argc, char **argv)
                 while(flag == 1)
                 {
                     count++;
-                    Network_Recv(netbuff, "Zigbee");
+                    ret = Network_Recv(netbuff, "Zigbee");
                     for(i = 0; i < (range - ind); i++)
                       buffer[ind + i] = netbuff[i];
-                    //Network_Send(2, netbuff, "Zigbee");
 
                     if(ind < SendSize)
                     {
@@ -101,11 +103,9 @@ int main(int argc, char **argv)
                 fwrite(buffer, 1, SendSize, wFile);
                 fclose(wFile);
                 free(buffer);
-
-
-                break;
-        case 2:
-
+    }
+    else if(id == 2)
+    {
                 rFile = fopen(infilename,"rb");
                 if( rFile == NULL)
                 {
@@ -126,8 +126,10 @@ int main(int argc, char **argv)
                 strcat(netbuff,pic_size);
                 strcat(netbuff,"@");
                 printf("Packet Content:[%s]\n",netbuff);
-                Network_Send(1, netbuff, "Zigbee");
-                Network_Recv(netbuff, "Zigbee");
+                do{
+                    ret = Network_Send(1, netbuff, "Zigbee");
+                }while(ret == 0);
+                ret = Network_Recv(netbuff, "Zigbee");
                 printf("Receive_data = %s\n", netbuff);
 
                 buffer = (char*) malloc(sizeof(char)*lSize);
@@ -136,11 +138,6 @@ int main(int argc, char **argv)
                 result = fread(buffer, 1, lSize, rFile);
                 if(result != lSize){fprintf(stderr, "Reading error"); exit(3);}
 
-
-                /*for(ind = 0;ind < lSize; ind++)
-                    tmpbuffer[ind] = buffer[ind];*/
-
- 
                 ind = 0;
                 range = PACKETSIZE;
                 if(range > lSize)
@@ -151,9 +148,11 @@ int main(int argc, char **argv)
                     bzero(netbuff, PACKETSIZE);
                     for(i = 0; i < (range - ind); i++)
                         netbuff[i] = buffer[ind + i];
-                    Network_Send(1, netbuff, "Zigbee");
-                    //Network_Recv(netbuff, "Zigbee");
-                    //printf("Receive_data = %s\n", netbuff);
+
+                    do{
+                        ret = Network_Send(1, netbuff, "Zigbee");
+                    }while(ret == 0);
+
                     if(ind < lSize)
                     {
                         if((range + PACKETSIZE) > lSize)
@@ -165,19 +164,17 @@ int main(int argc, char **argv)
                     if(ind == lSize)
                           flag = 0;
                 }
-                wFile = fopen(outfilename, "w+b");
+                /*wFile = fopen(outfilename, "w+b");
                 fwrite(tmpbuffer, 1, lSize, wFile);
-                fclose(wFile);
+                fclose(wFile);*/
 
                 free(buffer);
                 fclose(rFile);
-
-                break;
     }
 
 
 
-    Network_Exit("Zigbee");
+    ret = Network_Exit("Zigbee");
 
     return 0;
 }

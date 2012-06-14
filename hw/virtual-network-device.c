@@ -22,15 +22,27 @@
 /***************************
  *  Structure Define
  */
+typedef struct net_init{
+    int DeviceID;
+    int rv; //return value
+}net_init;
+
+typedef struct net_exit{
+    int DeviceID;
+    int rv; //return value
+}net_exit;
+
 typedef struct net_send{
     int ReceiverID;
     uint32_t DataAddress;
     unsigned int DataSize;
+    int rv; //return value
 }net_send;
 
 typedef struct net_recv{
     int SenderID;
     uint32_t DataAddress;
+    int rv; //return value
 }net_recv;
 
 typedef struct VNDState
@@ -79,8 +91,10 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
             { 
                 case NETWORK_INIT: {
                             M2M_DBG(level, MESSAGE, "Enter NETWORK_INIT ...");
-                            vnd->DeviceID = value;
-                            //M2M_DBG(level, MESSAGE, "Network device initialization: Device ID = %d",vnd->DeviceID);
+                            net_init* netinit;
+                            netinit = (uint32_t *)v2p(value, 0);
+                            vnd->DeviceID = netinit->DeviceID;
+                            M2M_DBG(level, MESSAGE, "Network device initialization: Device ID = %d",vnd->DeviceID);
 
                             rc = m2m_topology_init(vnd->DeviceID);
 
@@ -99,6 +113,7 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_time_init();
 
+                            netinit->rv = 1;
                             M2M_DBG(level, MESSAGE, "Exit NETWORK_INIT ...");
                         }break;
 
@@ -106,7 +121,12 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             M2M_DBG(level, MESSAGE, "Enter NETWORK_SEND ...");
                             net_send* packet;
                             packet = (uint32_t *)v2p(value, 0);
-                            m2m_send((uint32_t *)v2p(packet->DataAddress, 0), packet->DataSize, packet->ReceiverID,NULL);
+                            int ret;
+                            ret = m2m_send((uint32_t *)v2p(packet->DataAddress, 0), packet->DataSize, packet->ReceiverID,NULL);
+                            if(ret == M2M_TRANS_SUCCESS)
+                                packet->rv = 1;
+                            else
+                                packet->rv = 0;
                             M2M_DBG(level, MESSAGE, "Exit NETWORK_SEND ...");
                         }break;
 
@@ -115,11 +135,14 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             net_recv* packet;
                             packet = (uint32_t *)v2p(value, 0);
                             m2m_recv((uint32_t *)v2p(packet->DataAddress, 0), -1, NULL);
+                            packet->rv = 1;
                             M2M_DBG(level, MESSAGE, "Exit NETWORK_RECV ...");
                         }break;
 
                 case NETWORK_EXIT: {
                             M2M_DBG(level, MESSAGE, "Enter NETWORK_EXIT ...");
+                            net_exit* netexit;
+                            netexit = (uint32_t *)v2p(value, 0);
 
                             rc = m2m_route_processor_exit();
 
@@ -132,10 +155,13 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                             if(rc == M2M_SUCCESS)
                                 rc = m2m_dbp_exit();
 
+                            if(rc == M2M_SUCCESS)
+                                rc = m2m_send_recv_exit();
+
                             /*if(rc == M2M_SUCCESS)
                                 rc = 
                             */
-
+                            netexit->rv = 1;
                             M2M_DBG(level, MESSAGE, "Exit NETWORK_EXIT ...");
                         }break;
 

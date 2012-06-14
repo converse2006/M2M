@@ -5,8 +5,8 @@
 #include<getopt.h>
 #include<string.h>
 #include <errno.h>
-#include"asm-generic/fcntl.h"
 #include "sys/mman.h"
+#include <fcntl.h>
 #define MAP_SIZE 0x1000
 #define NDIST 16
 #define FATAL do { fprintf(stderr, "Error at line %d, file %s (%d) [%s]\n", \
@@ -17,22 +17,37 @@
 //ex: NDIST * offset + addr
 #define MAP_MASK (MAP_SIZE-1)
 //void* addr;
+/*using namespace std;
+#include <iostream>
+#include <fstream> //fstream.open fstream.close*/
+
+typedef struct net_init{
+    int DeviceID;
+    int rv; //return value
+}net_init;
+
+typedef struct net_exit{
+    int DeviceID;
+    int rv; //return value
+}net_exit;
 
 typedef struct net_send{
     int ReceiverID;
     uint32_t DataAddress;
     unsigned int DataSize;
+    int rv; //return value
 }net_send;
 
 typedef struct net_recv{
     int SenderID; 
     uint32_t DataAddress;
+    int rv; //return value
 }net_recv;
 
-int Network_Init(unsigned int, char*, int);
-int Network_Exit(char*);
-int Network_Send(unsigned int, char*, char* );
-int Network_Recv(char* ,char* );
+int Network_Init(unsigned int, const char*, int);
+int Network_Exit(const char*);
+int Network_Send(unsigned int, char*, const char* );
+int Network_Recv(char* ,const char* );
 void ShowPacketInfo(net_send);
 void* DeviceOpen(int, int);
 
@@ -41,7 +56,7 @@ enum Network_Type{Zigbee, Wifi, Bluetooth};
 unsigned int DeviceID;
 #define NETWORK_TYPE_NUM 3
 #define PACKETSIZE 100
-char* NETWORK_TYPE[NETWORK_TYPE_NUM] = {"Zigbee","Wifi","Bluetooth"};
+const char* NETWORK_TYPE[NETWORK_TYPE_NUM] = {"Zigbee","Wifi","Bluetooth"};
 
 //
 //                       [1.ZC]
@@ -79,13 +94,14 @@ void* DeviceOpen(int size, int offset)
 	if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){   
 		fprintf(stderr,"gpio: Error opening /dev/mem\n");
 		exit(-1);
-	}   
+	} 
+
 	//addr 	= addr + (map_address & MAP_MASK);
 	vnd_addr = mmap(0, size, PROT_READ| PROT_WRITE, MAP_SHARED, fd, map_address & ~MAP_MASK); 
     close(fd);
 }
 
-int Network_Recv(char* message, char* NetworkType)
+int Network_Recv(char* message, const char* NetworkType)
 {
     net_recv packet;
     packet.SenderID = -1;
@@ -94,13 +110,12 @@ int Network_Recv(char* message, char* NetworkType)
 
     int PA = (int)(&packet);
     memcpy(vnd_addr + 8, &PA, sizeof(int));
-    return 1;
+    return packet.rv;
 }
 
-int Network_Send(unsigned int ReceiverID, char* message, char* NetworkType)
+int Network_Send(unsigned int ReceiverID, char* message, const char* NetworkType)
 {
     net_send packet;
-    printf("Message size = %d\n",strlen(message));
     packet.ReceiverID = ReceiverID;
     packet.DataAddress = (uint32_t)&message[0];
     packet.DataSize = PACKETSIZE;//strlen(message);
@@ -108,7 +123,7 @@ int Network_Send(unsigned int ReceiverID, char* message, char* NetworkType)
 
     int PA = (int)(&packet);
     memcpy(vnd_addr + 4, &PA, sizeof(int));
-    return 1;
+    return packet.rv;
 }
 
 int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
@@ -152,7 +167,7 @@ int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
     return 0;
 }
 
-int Network_Init(unsigned int Device_ID, char* NetworkType, int timing_model)
+int Network_Init(unsigned int Device_ID, const char* NetworkType, int timing_model)
 {
     int ind;
     int flag = 0;
@@ -169,8 +184,12 @@ int Network_Init(unsigned int Device_ID, char* NetworkType, int timing_model)
     }
 
     DeviceID = Device_ID;
+    net_init netinit;
+    netinit.DeviceID =  Device_ID;
+    int PA = (int)(&netinit);
+
     DeviceOpen(20, 0);
-    memcpy(vnd_addr,&Device_ID,4);
+    memcpy(vnd_addr,&PA, sizeof(int));
 
     int para_num = 3;
     int open = 0;
@@ -178,10 +197,10 @@ int Network_Init(unsigned int Device_ID, char* NetworkType, int timing_model)
     //int timing_model = 5;
     vpmu_control(para_num,open, offset, timing_model);
 
-    return 1;
+    return netinit.rv;
 }
 
-int Network_Exit(char* NetworkType)
+int Network_Exit(const char* NetworkType)
 {
     void* addr;
 
@@ -196,7 +215,10 @@ int Network_Exit(char* NetworkType)
         if(!strcmp(NetworkType, NETWORK_TYPE[ind]))
             printf("Network type: %s Exit \n",NETWORK_TYPE[ind]);
 
-    memcpy(vnd_addr+12,&DeviceID,4);
+    net_exit netexit;
+    netexit.DeviceID =  DeviceID;
+    int PA = (int)(&netexit);
+    memcpy(vnd_addr+12,&PA, sizeof(int));
 
-    return 1;
+    return netexit.rv;
 }

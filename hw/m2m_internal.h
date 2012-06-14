@@ -6,9 +6,12 @@
 #include "m2m_route_processor.h"
 
 #define M2MDEBUG 
+#define M2M_LOGFILE
+
 #ifdef M2MDEBUG
 #include <assert.h>
 #define M2M_DEBUG_LEVEL 0
+
 
 #define M2M_DBG(level, CATEGORY, str, ...) \
     M2M_DEBUG_##CATEGORY(level, str, ##__VA_ARGS__)
@@ -43,7 +46,7 @@ extern M2M_ERR_T m2m_send(void *, int, int , int );
 extern M2M_ERR_T m2m_recv(void *, int, int );
 extern unsigned int route_discovery(int , int);
 extern uint64_t get_vpmu_time();
-extern uint64_t transmission_latency(m2m_HQe_t* , unsigned int, char*);
+extern uint64_t transmission_latency(m2m_HQe_t* , unsigned int,uint64_t* ,char*);
 extern uint64_t time_sync();
 
 // ==== "DESTRUCTOR" CALLS
@@ -51,5 +54,6 @@ extern M2M_ERR_T m2m_mm_exit();
 extern M2M_ERR_T m2m_route_processor_exit();
 extern M2M_ERR_T m2m_dbp_exit();
 extern M2M_ERR_T m2m_time_exit();
+extern M2M_ERR_T m2m_send_recv_exit();
 
 #endif

@@ -31,7 +31,11 @@ typedef struct VND{
     int Neighbors[8];
     int NeighborNum;
     long Shared_memory_address;
-    uint64_t TotalTransTime;
+    uint64_t TotalTransTimes;             //Total time for transmission waiting. 
+    uint64_t TotalTransSendEventTimes;    //Total count for transmission send event 
+    uint64_t TotalTransRecvEventTimes;    //Total count for transmission recv event 
+    uint64_t TotalPacketLossTimes;        //Total count for one-hop transmission loss
+    uint64_t TotalPacketTransTimes;       //Total count fot one-hop transmission 
 }VND;
 
 /*typedef struct DeviceStruct{
@@ -45,6 +49,8 @@ typedef enum
     M2M_ERROR               =               0,
     M2M_SUCCESS             =               1,
     M2M_TRANS_NOT_READY     =               8,
+    M2M_TRANS_FAIL          =               44,
+    M2M_TRANS_SUCCESS       =               77,
 }M2M_ERR_T;
 
 //Special Write 
