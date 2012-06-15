@@ -55,7 +55,7 @@ void* vnd_addr;
 enum Network_Type{Zigbee, Wifi, Bluetooth};
 unsigned int DeviceID;
 #define NETWORK_TYPE_NUM 3
-#define PACKETSIZE 100
+#define PACKETSIZE 101
 const char* NETWORK_TYPE[NETWORK_TYPE_NUM] = {"Zigbee","Wifi","Bluetooth"};
 
 //

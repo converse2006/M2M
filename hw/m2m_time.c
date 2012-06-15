@@ -6,20 +6,21 @@
 #include "vpmu.h"
 
 //Communication Time Estimation Parameters
-#define MaxPayLoad         84   //Bytes
-#define Percentage         100
-#define ChannelBusyRate    0.6 
-#define minBE              3
-#define maxBE              5
-#define MaxCSMABackoffs    4
-#define MaxFrameRetries    3
-#define AckWaitDuration    864  //microsecond(us)
-#define AUnitBackoffPeriod 320  //microsecond(us)
-#define CCADetectionTime   128  //microsecond(us)
-#define SIFS               192  //microsecond(us)
-#define LIFS               640  //microsecond(us)
-#define HEADERSIZE         43   //Bytes, Total Packet Size = 127Bytes
-#define DataRate           32   //microsecond(us)  250 kbps (kilo bits per second) = 32us/byte
+#define MaxPayLoad             84   //Bytes
+#define Percentage             100
+#define ChannelBusyRateCSMA    0.7 
+#define ChannelBusyRateTx      0.0 
+#define minBE                  3
+#define maxBE                  5
+#define MaxCSMABackoffs        4
+#define MaxFrameRetries        3
+#define AckWaitDuration        864  //microsecond(us)
+#define AUnitBackoffPeriod     320  //microsecond(us)
+#define CCADetectionTime       128  //microsecond(us)
+#define SIFS                   192  //microsecond(us)
+#define LIFS                   640  //microsecond(us)
+#define HEADERSIZE             43   //Bytes, Total Packet Size = 127Bytes
+#define DataRate               32   //microsecond(us)  250 kbps (kilo bits per second) = 32us/byte
 
 //time sync parameters
 extern int end_count, router_count, neighbor_end;
@@ -191,7 +192,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uin
                 //fprintf(stderr, "Backofftime = %d\n",Backofftime);
                 TotalTransTimeus += Backofftime * AUnitBackoffPeriod; //Random Backoff Time
                 TotalTransTimeus += CCADetectionTime;                 //Perform CCA (Clear Channel  Assessment)
-                int csma_fail = RandomHit(ChannelBusyRate * Percentage);
+                int csma_fail = RandomHit(ChannelBusyRateCSMA * Percentage);
                 if(csma_fail == 1)
                 {
                     //fprintf(stderr, "csma_fail\n");
@@ -221,7 +222,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uin
             TotalTransTimeus += (msg_info->PacketSize + HEADERSIZE) * DataRate;
             TotalTransTimeus += AckWaitDuration;
 
-            int ack_fail = RandomHit(ChannelBusyRate * Percentage);
+            int ack_fail = RandomHit(ChannelBusyRateTx * Percentage);
             if(ack_fail == 1)
             {
                 //fprintf(stderr, "ack_fail\n");
