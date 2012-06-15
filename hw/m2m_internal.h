@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
+ *      - Chen Chun-Han <converse2006@gmail.com>
+ */
+
 #ifndef _M2M_INTERNAL_H_
 #define _M2M_INTERNAL_H_
 

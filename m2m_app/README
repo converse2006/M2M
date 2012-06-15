@@ -1,4 +1,7 @@
-Author: Chun-Han Chen (converse2006@gmail.com)
+/*                                                                                                                    
+ * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
+ *      - Chen Chun-Han <converse2006@gmail.com>
+ */
 
 Run scenario step:
 1.Edit your scenario (reference main.c) and modify topology.conf

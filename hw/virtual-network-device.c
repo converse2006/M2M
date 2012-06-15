@@ -1,4 +1,7 @@
-
+/*  
+ * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
+ *      - Chen Chun-Han <converse2006@gmail.com>
+ */
 
 #include "sysbus.h"
 #include "devices.h"

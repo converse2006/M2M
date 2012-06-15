@@ -1,9 +1,8 @@
-[M2M Simulation Framework: M2M-Sim]
 /*  
  * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
  *      - Chen Chun-Han <converse2006@gmail.com>
  */
-[Introduction]
+
 This is a simulation framework support M2M application based on QEMU emulator
 Currently we support Zigbee/802.15.4 network simulation and we varify our result
 with other paper achieve 99% accuracy and 18 times speedup comare to real platform execution
@@ -47,30 +46,3 @@ Step 5. Compile your program which want to execute on emulator
 Step 6. Execute your application 
 [NOTE 1] "cd data;./vnd_api 1 lin.jpeg out.jpeg; cd ../"
 [NOTE 2] PLEASE run "ZC" as FIRST (Because ZC need initial shared memory)
-
-===========================================================================================
-
-[Original Android Emulator README]
-This package contains the sources to the Android emulator program.
-
-This program emulates a virtual ARM board that can be used to run Android
-system images on a typical developer machine. To do so, you'll need additionnal
-files provided with the public Android Software Development Kit (SDK).
-
-To download them, go to http://code.google.com/android/
-
-Emulator-specific documentation is available at the following page:
-
-    http://code.google.com/android/reference/emulator.html
-
-Please read the INSTALL file to see how you can rebuild the emulator, or
-build a source distribution package tarball.
-
-Read the CHANGES.TXT file to see what important changes were added since
-the last release.
-
-Note: This program is distributed under the terms of the GNU General Public
-      License, which exact licensing conditions are available in the COPYING
-      file found within this package.
-
-- Android Emulator Team

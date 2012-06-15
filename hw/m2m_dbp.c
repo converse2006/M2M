@@ -1,3 +1,8 @@
+/*  
+ * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
+ *      - Chen Chun-Han <converse2006@gmail.com>
+ */
+
 #include "m2m.h"
 #include "m2m_internal.h"
 #include "m2m_mm.h"
