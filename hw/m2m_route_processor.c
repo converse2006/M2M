@@ -180,7 +180,13 @@ static void *m2m_route_processor_create(void *args)
 
             //TODO This part need to check!! Router/Coordinator
             if(!strcmp(GlobalVND.DeviceType,"ZR"))
+            {
                 *router_localtime_ptr = time_sync();
+                //[IMPORTANT] This is critcal to whole system performance
+                //Due to router busy waiting occupy the CPU
+                //so we let router sleep a period to relax the CPU for other device
+                usleep(SLEEP_TIME * 10);
+            }
 
         }
         
@@ -298,8 +304,6 @@ static void *m2m_route_processor_create(void *args)
                     {
                         neighbor_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu", GlobalVND.DeviceID, *neighbor_localtime);
-                        //FIXME this usleep could delete!
-                        //usleep(SLEEP_TIME);
 
                         if(packet_mintime <= *neighbor_localtime)
                         {

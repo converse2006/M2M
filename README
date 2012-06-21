@@ -3,6 +3,7 @@
  * Copyright (C) 2012 PASLab CSIE NTU. All rights reserved.
  *      - Chen Chun-Han <converse2006@gmail.com>
  */
+
 [Introduction]
 This is a simulation framework support M2M application based on QEMU emulator
 Currently we support Zigbee/802.15.4 network simulation and we varify our result
@@ -43,10 +44,25 @@ Step 5. Compile your program which want to execute on emulator
 [NOTE 3]After cross-compile,push your binary to emulator data space(i.e. push.sh)
         "adb -s emulator-#emulator-num push your-binary /data"
         for example "adb -s emulator-5554 push vnd_api /data"
+[NOTE 4]network_device.c have a macro "Netoff", this macro is used to disable trigger network communcation API.
+        When used this macro, device WILL NOT malloc shared memory but VPMU STILL WILL write time into shared memory.
+        So,You also need to mark #define CONFIG_VND 1 => //#define CONFIG_VND 1
         
 Step 6. Execute your application 
 [NOTE 1] "cd data;./vnd_api 1 lin.jpeg out.jpeg; cd ../"
 [NOTE 2] PLEASE run "ZC" as FIRST (Because ZC need initial shared memory)
+[NOTE 3] "IMPORTANT" if program will not use Network_XXX API, 
+         please mark android/config/linux-x86/config-host.h
+         #define CONFIG_VND 1 => //#define CONFIG_VND 1 
+         or you will cause system crash!!!
+
+Step 7.Get Performance result and Log data
+[NOTE 1] Peformance data will show up after Network_Exit() is called
+[NOTE 2] Log data place at "android.paslab/NetLogs", if you have define M2M_LOGFILE
+         at "hw/m2m_internal.h"
+         The log file compose two type:
+         (1) Log send/recv event => Only Coordinator/End device have (i.e. device#num.txt)
+         (2) Log route event     => Only Coordinator/Router have     (i.e. Routedevice#num.txt)
 
 ===========================================================================================
 

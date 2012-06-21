@@ -4148,7 +4148,7 @@ static inline void VPMU_set_config_from_file(void)
 {
 	FILE *config_file;
 	if (GlobalVPMU.cpu_model == 0)
-		config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm926", "r");
+		config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm11", "r");
 	else if (GlobalVPMU.cpu_model == 1)
 		config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-cortex-a9", "r");
 

@@ -34,3 +34,25 @@ cd data;./vnd_api 1 lin.jpeg out.jpeg; cd ../
 cd data;./vnd_api 2 lin.jpeg out.jpeg; cd ../
 [Check] adb -s emulator-5554 pull /data/out.jpeg .
 
+adb push surveillance /data
+cd data;./surveillance 1 lin.jpeg out.jpeg; cd ../
+cd data;./surveillance 2 lin.jpeg out.jpeg; cd ../
+./switch_vpmu -o 0 5; ./facedetect lin.jpeg; ./switch_vpmu --off
+./switch_vpmu -o 0 5; ./facedetect 47k.jpg; ./switch_vpmu --off
+
+cd data;./multihops 1 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 2 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 3 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 4 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 5 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 6 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 7 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 8 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 9 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 10 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 11 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 12 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 13 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 14 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 15 lin.jpeg out.jpeg; cd ../
+cd data;./multihops 16 lin.jpeg out.jpeg; cd ../

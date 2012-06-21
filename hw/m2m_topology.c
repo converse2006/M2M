@@ -9,6 +9,13 @@
 #include "m2m_internal.h"
 #include "m2m_mm.h"
 
+/*Set core affinity--------------*/
+#define __USE_GNU
+#include <sched.h>
+#include <ctype.h>
+/*-------------------------------*/
+
+
 int TotalNetworkTypeDevice[3]= {0};
 int BeforeNetworkTypeDevice[3] = {0};
 unsigned int NODE_MAP[MAX_NODE_NUM][MAX_NODE_NUM];
@@ -48,7 +55,22 @@ M2M_ERR_T m2m_topology_init(int DeviceID)
     return rc;
 }
 
+M2M_ERR_T set_core_affinity()
+{
+    int level = 2;
+    M2M_DBG(level, MESSAGE, "Exit set_core_affinity() ...");
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    CPU_SET(GlobalVND.DeviceID % ENV_CORE_NUM, &mask);
 
+    if(sched_setaffinity(0, sizeof(mask), &mask) == -1)
+    {
+        printf("warning: could not set CPU affinity, continuing...\n");
+        exit(0);
+    }
+    M2M_DBG(level, MESSAGE, "Exit set_core_affinity() ...");
+    return M2M_SUCCESS;
+}
 
 //  =====   INTERNAL FUNCTIONS  =======
 static M2M_ERR_T node_infofetch(int DeviceID)

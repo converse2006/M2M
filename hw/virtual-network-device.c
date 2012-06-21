@@ -111,6 +111,9 @@ static void special_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                                 rc = m2m_route_processor_init();
 
                             if(rc == M2M_SUCCESS)
+                                rc = set_core_affinity();
+
+                            if(rc == M2M_SUCCESS)
                                 rc = m2m_send_recv_init();
                             
                             if(rc == M2M_SUCCESS)

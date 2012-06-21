@@ -2364,14 +2364,14 @@ void dual_issue_check(DisasContext *s)
 			}
 		}
 
-		if (is_arith[0] == 1 && is_arith[1] == 1)
+		/*if (is_arith[0] == 1 && is_arith[1] == 1)
 		{
 			if (Rd[0] != Rd[1] &&
 				Rd[0] != Rm[1] && Rd[0] != Rn[1] &&
 				Rd[1] != Rm[0] && Rd[1] != Rn[0])
 				s->tb->extra_tb_info.dual_issue_reduce_ticks++;
 		}
-		else if (is_arith[0] == 1 && is_ls[1] == 1)
+		else */if (is_arith[0] == 1 && is_ls[1] == 1)
 		{
 			if (Rd[0] != Rd[1] && Rd[0] != Rn[1] &&
 				Rm[0] != Rd[1] && Rn[0] != Rd[1])

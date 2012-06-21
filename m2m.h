@@ -20,7 +20,7 @@
 /*------------------------------------------------------------*/
 /*  Virtual Network Device                                    */
 /*------------------------------------------------------------*/
-#define VND_BASE_ADDR 0xf0004000
+#define VND_BASE_ADDR 0xf0004000  //0xf0004000
 #define VND_IOMEM_SIZE 0x2000 /* 0x0000~0x0fff is used by vpd */
 #define ROUTER_RFDx
 #define MAX_TIME (-1)
@@ -55,6 +55,7 @@ typedef enum
     M2M_TRANS_NOT_READY     =               8,
     M2M_TRANS_FAIL          =               44,
     M2M_TRANS_SUCCESS       =               77,
+    M2M_ERR_AFFINITY        =               78,
 }M2M_ERR_T;
 
 //Special Write 
@@ -66,8 +67,8 @@ typedef enum
 #define NETWORK_RECV           0x0008
 #define NETWORK_EXIT           0x000C
 
-//Debugging
 
+#define M2M_VPMU               //CPU Phase update local clock  
 #define M2M_SHOWINFOx          //Used to show map info 
 
 /*------------------------------------------------------------*/
@@ -79,7 +80,7 @@ typedef enum
 
 #define TimingModel              1   // 0: fast 1: slow
 
-
+#define ENV_CORE_NUM                 8
 #define MAX_NODE_NUM                 100
 #define MAX_NODE_SIZE                100
 
