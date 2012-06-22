@@ -85,7 +85,21 @@ void usage() {
     cout << endl;
 }
 
+void jpeg_quality(IplImage** image,string imageIn, int quality)
+{
+            int p[3];
+            p[0] = CV_IMWRITE_JPEG_QUALITY;
+            p[1] = quality;
+            p[2] = 0;
+            cvSaveImage("out2.jpeg", *image, p);
+
+            imageIn.assign("out2.jpeg");
+            *image = cvLoadImage( imageIn.c_str(), -1 );
+            cout<<"imageIn:  "<<imageIn<<endl;
+}
+
 int main( int argc, char** argv ) {
+    int quality = 10;
     if ( argc > 1 ) {
 
         string imageIn;
@@ -139,6 +153,9 @@ int main( int argc, char** argv ) {
             cout<<"Detect faces"<<endl;
             CvMemStorage* storage = cvCreateMemStorage(0);
             image = cvLoadImage( imageIn.c_str(), -1 );
+
+            jpeg_quality(&image, imageIn, quality);
+
             cout<<"Image ="<<image<<endl;
             if (image) {
                 cout<<"Image exist"<<endl;

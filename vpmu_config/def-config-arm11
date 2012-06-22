@@ -1,5 +1,5 @@
 ## CPU CONFIGURATION ##
-cpu_frequency,528,
+cpu_frequency,520,
 ## CACHE CONFIGURATION ##
 l1_cache_miss_latency,97,
 l2_cache_miss_latency,0,

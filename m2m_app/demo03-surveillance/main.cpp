@@ -96,14 +96,14 @@ void facedetect(char* infilename, char* outfilename, unsigned char* buffer,unsig
         CvSeq* faces = detect(image, storage, cascade);
         if (faces->total != 0) {
             cout<<"Image contain "<<faces->total<<"people!!"<<endl;
-            draw (image, faces);
+            /*draw (image, faces);
             if(imageOut.size() == 0) {
                 cvSaveImage(("face_" + imageIn).c_str(), image );
                 cout<<"ImageOut: "<< ("face_" + imageIn) <<endl;
             }else{
                 cvSaveImage(imageOut.c_str(), image );
                 cout<<"ImageOut: "<< imageOut <<endl;
-            }
+            }*/
         }else{
             cout<<"No faces found."<<endl;
         }
@@ -114,8 +114,31 @@ void facedetect(char* infilename, char* outfilename, unsigned char* buffer,unsig
 
 }
 
-int ImageFromFile(char *infilename,unsigned char** buffer)
+char* jpeg_quality(string imageIn, int quality)
 {
+            IplImage* image = 0;
+            char* outfilename = "tmp.jpeg";
+            string outfilename2;
+            outfilename2.assign(outfilename);
+            
+            image = cvLoadImage( imageIn.c_str(), -1 );
+
+            int p[3];
+            p[0] = CV_IMWRITE_JPEG_QUALITY;
+            p[1] = quality;
+            p[2] = 0;
+            cvSaveImage(outfilename2.c_str(), image, p);
+            return outfilename;
+            
+}
+
+int ImageFromFile(char *infilename, unsigned char** buffer, int quality)
+{
+        string imageIn;
+        string readfilename;
+        imageIn.assign(infilename);
+        infilename = jpeg_quality(imageIn, quality);
+
         int lSize;
         FILE* rFile;
         size_t result;
@@ -157,13 +180,14 @@ int main(int argc, char **argv)
     char netbuff[PACKETSIZE+1] = "2:88715@";
     char pic_size[PACKETSIZE+1];
     char idbuff[PACKETSIZE+1];
+    int quality;
 
-
-    if(argc == 4)
+    if(argc == 5)
     {
+        id = atoi(argv[1]);
         infilename = argv[2];
         outfilename =argv[3];
-        id = atoi(argv[1]);
+        quality =atoi(argv[4]);
     }
     else
     {
@@ -188,18 +212,6 @@ int main(int argc, char **argv)
                 //Read Image from file(camera)
                 //SendSize = ImageFromFile(infilename, &buffer);
 
-                /*
-                unsigned short width=409,height=717;
-                bool jpegmeta;
-                jpegmeta = get_jpeg_size(buffer, SendSize, &width, &height);
-                if(jpegmeta)
-                    printf("JPEG Width = %d\nHeight = %d\n",width, height);
-                else
-                {
-                    printf("JPEG doesn't exist\n");
-                    exit(0);
-                }
-                */
 
                 ret = Network_Recv(netbuff, "Zigbee");
                 printf("netbuff content:[%s]\n",netbuff);
@@ -270,7 +282,7 @@ int main(int argc, char **argv)
     else if(id == 2) //End device
     {
                 //Read Image from file(camera)
-                lSize = ImageFromFile(infilename, &buffer);
+                lSize = ImageFromFile(infilename, &buffer, quality);
 
                 bzero(netbuff, sizeof(netbuff));
                 sprintf(pic_size, "%d", lSize);
@@ -323,43 +335,3 @@ int main(int argc, char **argv)
     return 0;
 }
 
-static bool get_jpeg_size(char* data, unsigned int data_size, unsigned short *width, unsigned short *height) 
-{
-   //Check for valid JPEG image
-   int i=0;   // Keeps track of the position within the file
-   if(data[i] == 0xFF && data[i+1] == 0xD8 && data[i+2] == 0xFF && data[i+3] == 0xE0) 
-   {
-      i += 4;
-      // Check for valid JPEG header (null terminated JFIF)
-      if(data[i+2] == 'J' && data[i+3] == 'F' && data[i+4] == 'I' && data[i+5] == 'F' && data[i+6] == 0x00) {
-         //Retrieve the block length of the first block since the first block will not contain the size of file
-         unsigned short block_length = data[i] * 256 + data[i+1];
-         while(i<data_size) 
-         {
-            i+=block_length;               //Increase the file index to get to the next block
-            if(i >= data_size) return false;   //Check to protect against segmentation faults
-            if(data[i] != 0xFF) return false;   //Check that we are truly at the start of another block
-            if(data[i+1] == 0xC0) 
-            {            
-                //0xFFC0 is the "Start of frame" marker which contains the file size
-                //The structure of the 0xFFC0 block is quite simple
-                // [0xFFC0][ushort length][uchar precision][ushort x][ushort y]
-               *height = data[i+5]*256 + data[i+6];
-               *width = data[i+7]*256 + data[i+8];
-               return true;
-            }
-            else
-            {
-               i+=2;                              //Skip the block marker
-               block_length = data[i] * 256 + data[i+1];   //Go to the next block
-            }
-         }
-         return false;                     //If this point is reached then no size was found
-      }
-      else
-            return false; //Not a valid JFIF string
-         
-   }
-   else
-        return false; //Not a valid SOI header
-}
