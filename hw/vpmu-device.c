@@ -116,10 +116,17 @@
     FDBG("  ->I/O memory cycles     : %s\n", commaprint((uint64_t)vpmu_io_memory_access_cycle_count()));\
     FDBG("Total Cycle count         : %s\n", commaprint(vpmu_cycle_count()));\
 \
+    FDBG("Network:\n");\
+    FDBG("Network recv count        : %s\n", commaprint(vpmu_estimated_netsend_execution_time_ns()));\
+    FDBG("Network recv time         : %s nsec\n", commaprint(vpmu_estimated_netrecv_execution_time_ns()));\
+    FDBG("Network send count        : %s\n", commaprint(vpmu_estimated_netsend_count()));\
+    FDBG("Network send time         : %s nsec\n", commaprint(vpmu_estimated_netrecv_count()));\
+\
     FDBG("Timing Information:\n");\
     FDBG("  ->Pipeline              : %s nsec\n", commaprint(vpmu_estimated_pipeline_execution_time_ns()));\
     FDBG("  ->System memory         : %s nsec\n", commaprint(vpmu_estimated_sys_memory_access_time_ns()));\
     FDBG("  ->I/O memory            : %s nsec\n", commaprint(vpmu_estimated_io_memory_access_time_ns()));\
+    FDBG("  ->Network               : %s nsec\n", commaprint(vpmu_estimated_network_execution_time_ns()));\
     FDBG("Estimated execution time  : %s nsec\n", commaprint(vpmu_estimated_execution_time_ns()));\
 \
 }while(0)
@@ -3633,6 +3640,36 @@ uint64_t vpmu_estimated_sys_memory_access_time_ns (void)
 	return vpmu_sys_memory_access_cycle_count() / (GlobalVPMU.target_cpu_frequency / 1000.0);
 }
 
+//converse2006
+uint64_t vpmu_estimated_netsend_execution_time_ns()
+{
+    return GlobalVPMU.netsend_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0);
+}
+
+//converse2006
+uint64_t vpmu_estimated_netrecv_execution_time_ns()
+{
+    return GlobalVPMU.netrecv_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0);
+}
+
+//converse2006
+uint64_t vpmu_estimated_netsend_count()
+{
+    return GlobalVPMU.netsend_count;
+}
+
+//converse2006
+uint64_t vpmu_estimated_netrecv_count()
+{
+    return GlobalVPMU.netrecv_count;
+}
+
+//converse2006
+uint64_t vpmu_estimated_network_execution_time_ns()
+{
+    return (vpmu_estimated_netsend_execution_time_ns() + vpmu_estimated_netrecv_execution_time_ns());
+}
+
 uint64_t vpmu_estimated_execution_time_ns(void)
 {
 	//evo0209 : [Bug] the eet_ns is not match the sum of total pipeline + mem + io
@@ -3641,6 +3678,7 @@ uint64_t vpmu_estimated_execution_time_ns(void)
     
 	return vpmu_estimated_pipeline_execution_time_ns() +
 			vpmu_estimated_io_memory_access_time_ns() +
+            vpmu_estimated_network_execution_time_ns() + //converse2006 added
 			vpmu_estimated_sys_memory_access_time_ns();
 }
 
@@ -4306,6 +4344,12 @@ void VPMU_reset(void)
 	//evo0209
 	GlobalVPMU.iomem_test = 0;
 	GlobalVPMU.iomem_qemu = 0;
+
+    //converse2006
+    GlobalVPMU.netrecv_count = 0;
+    GlobalVPMU.netsend_count = 0;
+    GlobalVPMU.netrecv_qemu = 0;
+    GlobalVPMU.netsend_qemu = 0;
 
     GlobalVPMU.timing_register = 0;
 

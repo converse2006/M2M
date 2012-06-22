@@ -558,6 +558,11 @@ typedef struct VPMU{
 	uint64_t iomem_qemu;
 	int iomem_test;
 
+    //converse2006
+    uint64_t netrecv_count;
+    uint64_t netsend_count;
+    uint64_t netsend_qemu;
+    uint64_t netrecv_qemu;
 
 	/* evo0209 : for dual issue check */
 	uint64_t reduce_ticks;
