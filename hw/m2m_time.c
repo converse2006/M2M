@@ -15,7 +15,7 @@
 #define Percentage             100
 #define ChannelBusyRateCSMA    0.0 
 #define ChannelBusyRateTx      0.0 
-#define minBE                  3
+#define minBE                  2
 #define maxBE                  5
 #define MaxCSMABackoffs        4
 #define MaxFrameRetries        3
@@ -35,6 +35,7 @@ extern int neighbor_router_list[NODE_MAX_LINKS];
 extern long m2m_localtime_start[MAX_NODE_NUM];
 extern VND GlobalVND;
 static inline int RandomHit(int Percent);
+volatile int vpmu_trigger = 0;
 
 M2M_ERR_T m2m_time_init()
 {
@@ -89,6 +90,7 @@ M2M_ERR_T m2m_time_init()
             }
         }
         *action_probe = 1;
+        vpmu_trigger = 77;
         
     }
     else
@@ -106,12 +108,13 @@ M2M_ERR_T m2m_time_exit()
     int level = 0;
     volatile  uint64_t *m2m_localtime;
     M2M_DBG(level, MESSAGE, "Enter m2m_time_exit() ...");
-
+    
+    vpmu_trigger = 0;
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
     //NOTE: When program finish set local time to MAX (MAX_TIME-1) to 
     //avoid block other device when they still running
-    M2M_DBG(level, MESSAGE, "Program finish time: %llu", *m2m_localtime);
-    M2M_DBG(level, MESSAGE, "Program total transmission time: %llu", GlobalVND.TotalTransTimes);
+    fprintf(stderr, "Program finish time: %llu\n", *m2m_localtime);
+    fprintf(stderr, "Program total transmission time: %llu\n", GlobalVND.TotalTransTimes);
     *m2m_localtime = MAX_TIME - 1;
 
     M2M_DBG(level, MESSAGE, "Exit m2m_time_exit() ...");

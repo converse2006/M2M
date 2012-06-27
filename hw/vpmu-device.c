@@ -32,6 +32,11 @@
 #include "pacdsp.h"
 #endif
 
+#ifdef CONFIG_VND 
+#include "m2m.h"
+extern VND GlobalVND;
+#endif 
+
 //#define VPMU_DEBUG_MSG  1
 
 /* Macro to enable/disable debug message for VPMU related code. */
@@ -117,10 +122,10 @@
     FDBG("Total Cycle count         : %s\n", commaprint(vpmu_cycle_count()));\
 \
     FDBG("Network:\n");\
-    FDBG("Network recv count        : %s\n", commaprint(vpmu_estimated_netsend_execution_time_ns()));\
-    FDBG("Network recv time         : %s nsec\n", commaprint(vpmu_estimated_netrecv_execution_time_ns()));\
-    FDBG("Network send count        : %s\n", commaprint(vpmu_estimated_netsend_count()));\
-    FDBG("Network send time         : %s nsec\n", commaprint(vpmu_estimated_netrecv_count()));\
+    FDBG("  ->recv count            : %s \n", commaprint(vpmu_estimated_netrecv_count()));\
+    FDBG("  ->send count            : %s \n", commaprint(vpmu_estimated_netsend_count()));\
+    FDBG("  ->recv time             : %s nsec\n", commaprint(vpmu_estimated_netrecv_execution_time_ns()));\
+    FDBG("  ->send time             : %s nsec\n", commaprint(vpmu_estimated_netsend_execution_time_ns()));\
 \
     FDBG("Timing Information:\n");\
     FDBG("  ->Pipeline              : %s nsec\n", commaprint(vpmu_estimated_pipeline_execution_time_ns()));\
@@ -3643,13 +3648,15 @@ uint64_t vpmu_estimated_sys_memory_access_time_ns (void)
 //converse2006
 uint64_t vpmu_estimated_netsend_execution_time_ns()
 {
-    return GlobalVPMU.netsend_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0);
+    return GlobalVPMU.netsend_qemu;
+    //return (GlobalVPMU.netsend_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0));
 }
 
 //converse2006
 uint64_t vpmu_estimated_netrecv_execution_time_ns()
 {
-    return GlobalVPMU.netrecv_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0);
+    return GlobalVPMU.netrecv_qemu;
+    //return (GlobalVPMU.netrecv_qemu / (GlobalVPMU.target_cpu_frequency / 1000.0));
 }
 
 //converse2006
@@ -4186,11 +4193,20 @@ static inline void VPMU_set_config_from_file(void)
 {
 	FILE *config_file;
 	if (GlobalVPMU.cpu_model == 0)
-		config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm11", "r");
-		//config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm7tdmi", "r");
-		//config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm926", "r");
+    {
+		    config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm926", "r");
+		    config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm7tdmi", "r");
+            //config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm11", "r");
+
+            //fprintf(stderr, "VPMU Configure: ARM11\n");
+            //fprintf(stderr, "VPMU Configure: ARM926\n");
+            fprintf(stderr, "VPMU Configure: ARM7TDMI\n");
+    }
 	else if (GlobalVPMU.cpu_model == 1)
+    {
 		config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-cortex-a9", "r");
+            fprintf(stderr, "VPMU Configure: ARMCortex-A9\n");
+    }
 
 	char tmp[255];
 	char *pch;

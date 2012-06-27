@@ -99,7 +99,7 @@ void jpeg_quality(IplImage** image,string imageIn, int quality)
 }
 
 int main( int argc, char** argv ) {
-    int quality = 10;
+    //int quality = 100;
     if ( argc > 1 ) {
 
         string imageIn;
@@ -154,7 +154,7 @@ int main( int argc, char** argv ) {
             CvMemStorage* storage = cvCreateMemStorage(0);
             image = cvLoadImage( imageIn.c_str(), -1 );
 
-            jpeg_quality(&image, imageIn, quality);
+            //jpeg_quality(&image, imageIn, quality);
 
             cout<<"Image ="<<image<<endl;
             if (image) {
@@ -162,14 +162,14 @@ int main( int argc, char** argv ) {
                 CvSeq* faces = detect(image, storage, cascade);
                 if (faces->total != 0) {
                     cout<<"faces found"<<faces->total<<" !!"<<endl;
-                    draw (image, faces);
+               /*     draw (image, faces);
                     if(imageOut.size() == 0) {
                         cvSaveImage(("face_" + imageIn).c_str(), image );
                         cout<<"ImageOut: "<< ("face_" + imageIn) <<endl;
                     }else{
                         cvSaveImage(imageOut.c_str(), image );
                         cout<<"ImageOut: "<< imageOut <<endl;
-                    }
+                    }*/
                 }else{
                     cout<<"No faces found."<<endl;
                 }

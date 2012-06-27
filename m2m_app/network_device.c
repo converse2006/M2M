@@ -15,8 +15,33 @@
 //if need to support other network
 //memory map I/O offset need to fix
 //ex: NDIST * offset + addr
+#define VPMU_BASED_ADDR 0xf0000000
+#define VPMU_IOMEM_SIZE 0x2000
+#define SET_BASE_ADDR   0xf0002000
+#define SET_IOMEM_SIZE  0x1000
+#define VND_BASED_ADDR  0xf0004000
+#define VND_IOMEM_SIZE  0x1000
 #define MAP_MASK (MAP_SIZE-1)
+#define NETWORK_TYPE_NUM 3
+#define PACKETSIZE 46  //93 64 46 32 20 8
 #define Netoffx //NOTE: This is need also mark "CONFIG_VND" at android/config/linux-x86/config-host.h
+#define VPMUoffx
+
+//SET
+
+#define SET_DEV_REG_SET_CTRL        (0 << 2)
+#define SET_DEV_REG_VPMU_SETUP      (1 << 2)
+#define SET_DEV_REG_EVENT_TYPE      (2 << 2)
+#define SET_DEV_REG_EVENT_NAME      (3 << 2)
+
+#define SET_DEV_REG_APP_NAME        (21 << 2)
+#define SET_DEV_REG_METHOD_ENTRY    (22 << 2)
+#define SET_DEV_REG_METHOD_EXIT     (23 << 2)
+//tianman
+#define SET_DEV_REG_JNI_ENTRY       (24 << 2)
+#define SET_DEV_REG_JNI_EXIT        (25 << 2)
+
+//
 
 typedef struct net_init{
     int DeviceID;
@@ -46,13 +71,11 @@ int Network_Exit(const char*);
 int Network_Send(unsigned int, char*, const char* );
 int Network_Recv(char* ,const char* );
 void ShowPacketInfo(net_send);
-void* DeviceOpen(int, int);
+void* VNDOpen(int, int);
 
 void* vnd_addr;
 enum Network_Type{Zigbee, Wifi, Bluetooth};
 unsigned int DeviceID;
-#define NETWORK_TYPE_NUM 3
-#define PACKETSIZE 101
 const char* NETWORK_TYPE[NETWORK_TYPE_NUM] = {"Zigbee","Wifi","Bluetooth"};
 
 void ShowPacketInfo(net_send PACKET)
@@ -71,9 +94,9 @@ void ShowPacketInfo(net_send PACKET)
     printf("===========================\n");
 }
 
-void* DeviceOpen(int size, int offset)
+void* VNDOpen(int size, int offset)
 {
-	unsigned long long map_address=0xf0004000;
+	unsigned long long map_address = VND_BASED_ADDR;
 	int fd;
 	if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){   
 		fprintf(stderr,"gpio: Error opening /dev/mem\n");
@@ -121,7 +144,7 @@ int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
 {
     void *addr;
 	unsigned int argv_2=0;
-	unsigned long long map_address=0xf0000000;
+	unsigned long long map_address = VPMU_BASED_ADDR;
 	switch(open_mode)
 	{
 		case 0:
@@ -145,8 +168,11 @@ int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
 	}
 	addr = mmap(0, 20, PROT_READ| PROT_WRITE, MAP_SHARED, fd, map_address & ~MAP_MASK);
 
-	if(addr == (void *) -1) {
-		printf("map_base:%x \n",addr);FATAL; }
+    if(addr == (void *) -1)
+    {
+        fprintf(stderr, "Error when mmap /dev/mem\n");
+        exit(1);
+    }
 
 	addr 	= addr + (map_address & MAP_MASK);
 
@@ -158,7 +184,51 @@ int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
     return 0;
 }
 
-int Network_Init(unsigned int Device_ID, const char* NetworkType, int timing_model)
+/*int set_control(int program_type, int timing model)
+{
+    int fd;
+    void* addr;
+	if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1)
+    {
+		fprintf(stderr,"gpio: Error opening /dev/mem\n");
+		exit(-1);
+	}
+	addr = mmap(0, SET_IO_MEM_SIZE, PROT_READ| PROT_WRITE, MAP_SHARED, fd, SET_BASE_ADDR);
+    close(fd);
+
+    if(addr == (void *) -1)
+    {
+        fprintf(stderr, "Error when mmap /dev/mem\n");
+        exit(1);
+    }
+
+    // Traced program
+    for (index = optind; index < )
+
+    // Timing model
+    if(timing_model > 0)
+    {
+        switch(timing_model)
+        {
+           case 1:
+                fprintf(stderr, "Timing model: pipeline simulation\n");
+                break;
+            case 2:
+                fprintf(stderr, "Timing model: Pipeline and I/D cache simulation\n");
+                break;
+            case 3:
+                fprintf(stderr, "Timing model: Pipeline, I/D cache and instruction simulation\n");
+                break;
+            default:
+                fprintf(stderr, "Wrong timing model!\n");
+                exit(1);
+        }   
+        memcpy(addr + SET_DEV_REG_VPMU_SETUP, &timing_model, 4); 
+    }
+
+}*/
+
+int Network_Init(unsigned int Device_ID, const char* NetworkType/*, int set, int program_type*/, int timing_model)
 {
     net_init netinit;
     netinit.rv = 1;
@@ -181,17 +251,34 @@ int Network_Init(unsigned int Device_ID, const char* NetworkType, int timing_mod
     netinit.DeviceID =  Device_ID;
     int PA = (int)(&netinit);
 
-    DeviceOpen(20, 0);
+    VNDOpen(20, 0);
     memcpy(vnd_addr,&PA, sizeof(int));
 #endif
-    if(timing_model != 0)
+
+#ifndef VPMUoff
+    //if(set == 0)
     {
-        int para_num = 3;
-        int open = 0;
-        int offset = 0;
-        //int timing_model = 5;
-        vpmu_control(para_num,open, offset, timing_model);
+        if(timing_model != 0)
+        {
+            int para_num = 3;
+            int open = 0;
+            int offset = 0;
+            //int timing_model = 5;
+            vpmu_control(para_num,open, offset, timing_model);
+        }
     }
+#endif
+    /*else
+    {
+        if(type < 0 || type > 128)
+        {
+            fprintf(stderr, "Error program type!\n");
+            exit(1);
+        }
+        set_control(program_type, timing_model);
+
+
+    }*/
 
     return netinit.rv;
 }
@@ -202,11 +289,13 @@ int Network_Exit(const char* NetworkType)
     netexit.rv = 1;
     void* addr;
 
+#ifndef VPMUoff
     int para_num = 3;
     int open = 1;
     int offset = 0;
     int timing_model = 3;
     vpmu_control(para_num,open, offset, timing_model);
+#endif
 
 #ifndef Netoff
     int ind;

@@ -1,0 +1,8 @@
+1. Router time synchronization:
+Even current earily packet time is small than router local time, the router still 
+need to check other neighbor devices' local time, due to neighbor local time may not 
+exceed the packet local time!!!
+
+2.Send/Recv function time synchronization:
+Check neighbor node local time  
+

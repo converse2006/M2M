@@ -5,6 +5,7 @@
 #ifdef M2M_VPMU
 extern VND GlobalVND;
 extern long m2m_localtime_start[MAX_NODE_NUM];
+extern int vpmu_trigger;
 #endif 
 
 #endif
@@ -281,8 +282,11 @@ void HELPER(vpmu_calculate)(void *opaque)
         }
 #ifdef CONFIG_VND
 #ifdef M2M_VPMU
-        volatile uint64_t *m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
-        *m2m_localtime = vpmu_estimated_execution_time_ns();
+        if(vpmu_trigger != 0)
+        {
+            volatile uint64_t *m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+            *m2m_localtime = vpmu_estimated_execution_time_ns();
+        }
 #endif
 #endif
 	}

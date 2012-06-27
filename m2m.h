@@ -68,7 +68,7 @@ typedef enum
 #define NETWORK_EXIT           0x000C
 
 
-#define M2M_VPMU               //CPU Phase update local clock  
+#define M2M_VPMUx               //CPU Phase update local clock  
 #define M2M_SHOWINFOx          //Used to show map info 
 
 /*------------------------------------------------------------*/
@@ -84,7 +84,7 @@ typedef enum
 #define MAX_NODE_NUM                 100
 #define MAX_NODE_SIZE                100
 
-
+//int vpmu_trigger = 0;
 extern void network_initial(int id);
 
 extern void network_exit();

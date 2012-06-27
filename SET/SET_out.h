@@ -20,6 +20,7 @@ typedef struct VPMUinfo {
 	uint64_t	eet_pipe;
 	uint64_t	eet_sys_mem;
 	uint64_t	eet_io;
+    uint64_t    eet_net;
 } VPMUinfo;
 
 typedef struct Method {

@@ -95,7 +95,7 @@ void facedetect(char* infilename, char* outfilename, unsigned char* buffer,unsig
         cout<<"Image exist"<<endl;
         CvSeq* faces = detect(image, storage, cascade);
         if (faces->total != 0) {
-            cout<<"Image contain "<<faces->total<<"people!!"<<endl;
+            cout<<"Image contain "<<faces->total<<" people!!"<<endl;
             /*draw (image, faces);
             if(imageOut.size() == 0) {
                 cvSaveImage(("face_" + imageIn).c_str(), image );
@@ -137,7 +137,8 @@ int ImageFromFile(char *infilename, unsigned char** buffer, int quality)
         string imageIn;
         string readfilename;
         imageIn.assign(infilename);
-        infilename = jpeg_quality(imageIn, quality);
+        if(quality != 100)
+            infilename = jpeg_quality(imageIn, quality);
 
         int lSize;
         FILE* rFile;

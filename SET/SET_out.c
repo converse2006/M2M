@@ -338,6 +338,7 @@ static inline void SET_output_write_type_vpmu(SETOut *output, uint8_t type)
             output->buf_vpmu[output->buf_global_size].eet_pipe = vpmu_estimated_pipeline_execution_time_ns();
             output->buf_vpmu[output->buf_global_size].eet_sys_mem = vpmu_estimated_sys_memory_access_time_ns();
             output->buf_vpmu[output->buf_global_size].eet_io = vpmu_estimated_io_memory_access_time_ns();
+            output->buf_vpmu[output->buf_global_size].eet_net = vpmu_estimated_network_execution_time_ns();
         }
     }
     output->buf_global_size++;

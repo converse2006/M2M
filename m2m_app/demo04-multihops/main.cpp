@@ -78,6 +78,8 @@ int main(int argc, char **argv)
     printf("Devcie ID = %d\n", id);
     printf("Input file name = %s\n", infilename);
     printf("Output file name = %s\n", outfilename);
+    printf("Network Configure:\n");
+    printf("Network Payload: %d\n", PACKETSIZE);
 
     char get_char;
     int p = 0;
@@ -158,7 +160,7 @@ int main(int argc, char **argv)
                 fclose(wFile);
                 free(buffer);
     }
-    else if(id == 3) //End device
+    else if(id == 6) //End device
     {
                 ret = Network_Init(id, "Zigbee", 5);
                 //Read Image from file(camera)

@@ -1,0 +1,32 @@
+If you can't run set_control panel, use this command line tool alternatively.
+
+1.Put the set binary into emulator:
+  host$ adb push set /data
+
+2.Execute the set binary in emulator:
+  emulator# cd data
+  emulator# ./set -t <sum of event number> -m <timing model number> <process name>
+
+  At the end of profiling
+  emulator# ./set stop 
+
+3.Event list:
+  NO EVENT    - 1
+  KERNEL      - 2
+  SYSTEM CALL - 4
+  LIBRARY     - 8
+  USER C/C++  - 16
+  DALVIK      - 32
+  IRQ         - 64
+
+4.Timing model list:
+  GUESTTIME                            - 0
+  PIPELINE                             - 1
+  PIPELINE + CACHE                     - 2
+  PIPELINE + CACHE + BRANCH PREDICTION - 3
+
+5.Example:
+  You can profiling the calculator in the emulator by the command below
+  emulator# cd data
+  emulator# ./set -t 43 -m 2 com.android.calculator2
+  emulator# ./set stop

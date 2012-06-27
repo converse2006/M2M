@@ -12,6 +12,7 @@
 #include "vpmu.h"
 
 extern VND GlobalVND;
+//extern VPMU GlobalVPMU;
 
 /*static long m2m_local_HQ_meta;
 static long m2m_local_HQe;
@@ -165,6 +166,7 @@ M2M_ERR_T m2m_send(void *src_data, int sizeb, int receiverID, int tag)
         //FIXME This part not implement!!
     }
     
+    GlobalVPMU.netsend_count++;
     M2M_DBG(level, MESSAGE, "Exit m2m_send() ...");
     if(rc == M2M_TRANS_FAIL)
         return M2M_TRANS_FAIL;
@@ -191,6 +193,7 @@ M2M_ERR_T m2m_recv(void *dst_data, int senderID, int tag)
         rc = m2m_get_local_msg(senderID, dst_data, (m2m_HQe_t *)&m2m_msgbuf);
     }while (rc != M2M_SUCCESS);
 
+    GlobalVPMU.netrecv_count++;
     M2M_DBG(level, MESSAGE, "Exit m2m_recv() ...");
     return M2M_SUCCESS;
 
@@ -281,8 +284,8 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                     M2M_DBG(level, MESSAGE, "fail_latency = %llu",fail_latency);
                    GlobalVND.TotalTransTimes += fail_latency;
 
-                    GlobalVPMU.netsend_count++;
-                    GlobalVPMU.netsend_qemu += (fail_latency)*(GlobalVPMU.target_cpu_frequency / 1000.0); 
+                    GlobalVPMU.netsend_qemu += (fail_latency);
+                    //*(GlobalVPMU.target_cpu_frequency / 1000.0); 
                    *m2m_localtime = time_sync();
                     M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
                     M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
@@ -320,6 +323,10 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 while(hq_conflag_ptr->dataflag == 77){}
                 M2M_DBG(level, MESSAGE,"[%d]hq_conflag_ptr->dataflag = %d",GlobalVND.DeviceID,hq_conflag_ptr->dataflag);
 
+                GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
+                GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync());
+                    //*(GlobalVPMU.target_cpu_frequency / 1000.0);
+
                 //FIXME the clock update need to consider different network type
                 //and CPU busy/idle
                 //ticks = ns * tick per ns
@@ -341,9 +348,6 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                     fputs(logtext, outFile);
 #endif
                 
-                   GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
-                   GlobalVPMU.netsend_count++;
-                   GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
                    *m2m_localtime = time_sync();
                     return M2M_TRANS_SUCCESS;
                 }
@@ -356,9 +360,8 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                     strcat(logtext, tmptext);
                     fputs(logtext, outFile);
 #endif
-                   GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
-                   GlobalVPMU.netsend_count++;
-                   GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
+                   //GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
+                   //GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
                    *m2m_localtime = time_sync();
                     M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
                     M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
@@ -489,10 +492,9 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     if(*m2m_localtime < (localHQe_ptr->SendTime + localHQe_ptr->TransTime))
     {
         GlobalVND.TotalTransTimes += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime);
-        GlobalVPMU.netrecv_qemu += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime) * \
-                                   (GlobalVPMU.target_cpu_frequency / 1000.0);
+        GlobalVPMU.netrecv_qemu += ((localHQe_ptr->SendTime + localHQe_ptr->TransTime) - *m2m_localtime); 
+                                            // \ *(GlobalVPMU.target_cpu_frequency / 1000.0);
     }
-        GlobalVPMU.netrecv_count++;
             
     //When achieve transmission, update to correct localtime
     if(strcmp(GlobalVND.DeviceType, "ZED"))
