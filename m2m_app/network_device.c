@@ -23,25 +23,10 @@
 #define VND_IOMEM_SIZE  0x1000
 #define MAP_MASK (MAP_SIZE-1)
 #define NETWORK_TYPE_NUM 3
-#define PACKETSIZE 46  //93 64 46 32 20 8
+#define PACKETSIZE 101  //93 64 46 32 20 8
 #define Netoffx //NOTE: This is need also mark "CONFIG_VND" at android/config/linux-x86/config-host.h
 #define VPMUoffx
 
-//SET
-
-#define SET_DEV_REG_SET_CTRL        (0 << 2)
-#define SET_DEV_REG_VPMU_SETUP      (1 << 2)
-#define SET_DEV_REG_EVENT_TYPE      (2 << 2)
-#define SET_DEV_REG_EVENT_NAME      (3 << 2)
-
-#define SET_DEV_REG_APP_NAME        (21 << 2)
-#define SET_DEV_REG_METHOD_ENTRY    (22 << 2)
-#define SET_DEV_REG_METHOD_EXIT     (23 << 2)
-//tianman
-#define SET_DEV_REG_JNI_ENTRY       (24 << 2)
-#define SET_DEV_REG_JNI_EXIT        (25 << 2)
-
-//
 
 typedef struct net_init{
     int DeviceID;
@@ -184,49 +169,6 @@ int vpmu_control(int para_num, int open_mode, int offset, int timing_model)
     return 0;
 }
 
-/*int set_control(int program_type, int timing model)
-{
-    int fd;
-    void* addr;
-	if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1)
-    {
-		fprintf(stderr,"gpio: Error opening /dev/mem\n");
-		exit(-1);
-	}
-	addr = mmap(0, SET_IO_MEM_SIZE, PROT_READ| PROT_WRITE, MAP_SHARED, fd, SET_BASE_ADDR);
-    close(fd);
-
-    if(addr == (void *) -1)
-    {
-        fprintf(stderr, "Error when mmap /dev/mem\n");
-        exit(1);
-    }
-
-    // Traced program
-    for (index = optind; index < )
-
-    // Timing model
-    if(timing_model > 0)
-    {
-        switch(timing_model)
-        {
-           case 1:
-                fprintf(stderr, "Timing model: pipeline simulation\n");
-                break;
-            case 2:
-                fprintf(stderr, "Timing model: Pipeline and I/D cache simulation\n");
-                break;
-            case 3:
-                fprintf(stderr, "Timing model: Pipeline, I/D cache and instruction simulation\n");
-                break;
-            default:
-                fprintf(stderr, "Wrong timing model!\n");
-                exit(1);
-        }   
-        memcpy(addr + SET_DEV_REG_VPMU_SETUP, &timing_model, 4); 
-    }
-
-}*/
 
 int Network_Init(unsigned int Device_ID, const char* NetworkType/*, int set, int program_type*/, int timing_model)
 {
@@ -256,7 +198,6 @@ int Network_Init(unsigned int Device_ID, const char* NetworkType/*, int set, int
 #endif
 
 #ifndef VPMUoff
-    //if(set == 0)
     {
         if(timing_model != 0)
         {
@@ -268,17 +209,6 @@ int Network_Init(unsigned int Device_ID, const char* NetworkType/*, int set, int
         }
     }
 #endif
-    /*else
-    {
-        if(type < 0 || type > 128)
-        {
-            fprintf(stderr, "Error program type!\n");
-            exit(1);
-        }
-        set_control(program_type, timing_model);
-
-
-    }*/
 
     return netinit.rv;
 }

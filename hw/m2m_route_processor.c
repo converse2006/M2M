@@ -75,6 +75,28 @@ unsigned int route_discovery(int start, int end)
 
 }
 
+uint64_t one_hop_latency(char* device)
+{
+    double T_TotalTime;
+    if(!strcmp(device, "zigbee"))
+    {
+        double Pinactive = ChannelBusyRateCSMA;
+        double Paccess_failure = (1-Pinactive) * (1-Pinactive) * (1-Pinactive) * (1-Pinactive);
+        double Paccess_granted = 1 - Paccess_failure;
+        uint64_t CCA[5]={0,1248,2528,5088,5088};
+        int TotalPacketBytes = 133;
+
+        double T_CSMACA = (CCA[1]+(1-Pinactive)*(CCA[2]+(1-Pinactive)*(CCA[3]+(1-Pinactive)*CCA[4])))/Paccess_granted;
+        double T_Tx = (TotalPacketBytes * 8 / 4) * 16;
+        double T_Turnaround = 12 * 16;
+        double T_Tx_ACK = (11 * 8 / 4) * 16;
+        double T_IFS = 40 * 16;
+
+        T_TotalTime = T_CSMACA + T_Tx + T_Turnaround + T_Tx_ACK + T_IFS;
+    }
+    return (uint64_t)(T_TotalTime * 1000);                          
+
+}
 static void *m2m_enddevice_processor_create(void *args)
 {
     int level = 2;
@@ -178,22 +200,19 @@ static void *m2m_route_processor_create(void *args)
             //NOTE: When router connected device all dead device or call recv and waiting for,
             //      we record that device local time 
 
-            //TODO This part need to check!! Router/Coordinator
             if(!strcmp(GlobalVND.DeviceType,"ZR"))
-            {
                 *router_localtime_ptr = time_sync();
-                //[IMPORTANT] This is critcal to whole system performance
-                //Due to router busy waiting occupy the CPU
-                //so we let router sleep a period to relax the CPU for other device
-                usleep(SLEEP_TIME * 10);
-            }
+
+            //[IMPORTANT] This is critcal to whole system performance
+            //Due to router busy waiting occupy the CPU
+            //so we let router sleep a period to relax the CPU for other device
+            usleep(SLEEP_TIME * 10);
 
         }
         
         M2M_DBG(level, MESSAGE, "Header Queue exist packet!!");
         
         //Exist packet in header queue
-        //FIXME MAX_TIME now equal to -1
         uint64_t packet_mintime = MAX_TIME;
         uint64_t packet_sendtime = MAX_TIME;
         unsigned int packet_from = -1;
@@ -234,10 +253,12 @@ static void *m2m_route_processor_create(void *args)
                     packet_mintime  = packet_ptr->SendTime + packet_ptr->TransTime;
                     packet_sendtime = packet_ptr->SendTime;
                     packet_from = packet_ptr->ForwardID;
+
                     if(GlobalVND.DeviceID != packet_ptr->ReceiverID)
                         packet_next = route_discovery(GlobalVND.DeviceID, packet_ptr->ReceiverID);
                     else
                         packet_next = GlobalVND.DeviceID;
+
                     if(index == GlobalVND.NeighborNum)
                         packet_ind = NODE_MAX_LINKS + 1;
                     else
@@ -252,18 +273,19 @@ static void *m2m_route_processor_create(void *args)
 
             M2M_DBG(level, MESSAGE,"[%d]Current earliest packet:\n Packet Index = %d\n Packet From = %d\n Packet_To = %d\n Packet Arrivel Time = %10llu\n Packet SendTime     = %10llu\n ", GlobalVND.DeviceID, packet_ind, packet_from, packet_next, packet_mintime, packet_sendtime);
 
-        //Wait other neighbor device(w/o Sender and Next_Hop) local clock 
-        //exceed (packet_mintime - one_hop_latency) 
 
         int deadline = 0,deadline_count = 0;
         int neigbor_device_deadline[NODE_MAX_LINKS + 2];
+        volatile uint64_t *neighbor_localtime;
         for(index = 0; index < NODE_MAX_LINKS + 2; index++)
             neigbor_device_deadline[index] = 0;
-        volatile uint64_t *neighbor_localtime;
 
-        //NOTE: if search_num equal to 2,it mean one is sender and another is receiver
+        //Wait other neighbor device (w/o Sender and Next_Hop) local clock exceed (packet_mintime - one_hop_latency) 
+        //NOTE: if search_num equal to 2,it mean one is sender and another is receiver 
         //based on algorithm, wait for nothing!
-        M2M_DBG(level, MESSAGE, "[WHILE]Router waiting for other device time later than current packet time");
+        //FIXME we need to wait receiver until its local clock right!!
+
+        M2M_DBG(level, MESSAGE, "Router waiting for other device time later than current packet time");
         if(search_num > 2) 
         while(!deadline)
         {
@@ -305,11 +327,16 @@ static void *m2m_route_processor_create(void *args)
                         neighbor_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu", GlobalVND.DeviceID, *neighbor_localtime);
 
-                        if(packet_mintime <= *neighbor_localtime)
+                        uint64_t tmp_packet_mintime;
+                        if(packet_mintime > one_hop_latency("zigbee"))
+                            tmp_packet_mintime = (packet_mintime - one_hop_latency("zigbee"));
+                        else
+                            tmp_packet_mintime = 0;
+                        if(tmp_packet_mintime <= *neighbor_localtime)
                         {
-                            neigbor_device_deadline[NODE_MAX_LINKS + 1] = 1;
+                            neigbor_device_deadline[index] = 1;
                             deadline_count++;
-                            M2M_DBG(level, MESSAGE, "Device %d local clock EXCEED!!", GlobalVND.DeviceID);
+                            M2M_DBG(level, MESSAGE, "Device %d local clock EXCEED!!\n ", GlobalVND.Neighbors[index]);
                         }
                     }
                 }
@@ -349,7 +376,12 @@ static void *m2m_route_processor_create(void *args)
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu\n ", \
                                                 GlobalVND.Neighbors[index], *neighbor_localtime);
 
-                        if(packet_mintime /*- one_hop_latency(GlobalVND.Neighbors[index])*/ <= *neighbor_localtime)
+                        uint64_t tmp_packet_mintime;
+                        if(packet_mintime > one_hop_latency("zigbee"))
+                            tmp_packet_mintime = (packet_mintime - one_hop_latency("zigbee"));
+                        else
+                            tmp_packet_mintime = 0;
+                        if(tmp_packet_mintime <= *neighbor_localtime)
                         {
                             neigbor_device_deadline[index] = 1;
                             deadline_count++;
@@ -366,7 +398,6 @@ static void *m2m_route_processor_create(void *args)
                 deadline = 1;
         }
 
-        M2M_DBG(level, MESSAGE, "Routing Processor forward packet from %d -> %d",packet_from ,packet_next);
         volatile int count = 0;
         int find_flag = 0;
         int transfail = 0;
@@ -413,10 +444,12 @@ static void *m2m_route_processor_create(void *args)
 
             //NOTE: Due to packet send to device itself,just forward packet without any packet modification
             //But Arrival time need to depend on router receive time to change transmission time
-            if(router_localtime > (FROM_packet-> SendTime + FROM_packet->TransTime))
-                FROM_packet->TransTime += router_localtime - (FROM_packet-> SendTime + FROM_packet->TransTime);
+            if(router_localtime > FROM_packet->SendTime)
+                FROM_packet->SendTime = router_localtime;   
             else
-                router_localtime = (FROM_packet-> SendTime + FROM_packet->TransTime);
+                router_localtime = FROM_packet->SendTime ;
+
+
             if(FROM_packet->EntryNum == -1) //Small Communication Scheme
             {
                 //Check receiver header queue is full or not
@@ -450,6 +483,7 @@ static void *m2m_route_processor_create(void *args)
 
             //Update sender/receiver local time
             volatile m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
+            router_localtime += FROM_packet->TransTime;
             hq_conflag->transtime = router_localtime;
             hq_conflag->dataflag  = 0;
             M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %llu", hq_conflag->transtime);
@@ -458,6 +492,7 @@ static void *m2m_route_processor_create(void *args)
         }
         else
         {
+            //Find next hop node in the GlobalVND.Neighbors list
             while(!find_flag && count < GlobalVND.TotalDeviceNum)
             {
                 if( GlobalVND.Neighbors[count] == packet_next)
@@ -472,6 +507,7 @@ static void *m2m_route_processor_create(void *args)
                 exit(0);
             }
             
+            //Setting FROM node and TO node location pointer
             FROM_meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[packet_ind];
             FROM_packet_ptr = (long *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
             FROM_packet = (m2m_HQe_t *)(uintptr_t)m2m_hq_buffer_start[packet_ind][FROM_meta_ptr->consumer];
@@ -480,20 +516,18 @@ static void *m2m_route_processor_create(void *args)
             TO_packet_ptr = (long *)(uintptr_t)m2m_remote_hq_buffer_start[count][TO_meta_ptr->producer];
           
             //Update packet header
-            FROM_packet->ForwardID = GlobalVND.DeviceID;
-
-            //FIXME ZR how to fix when ZR are FFD will send data 
-            if(router_localtime > (FROM_packet-> SendTime + FROM_packet->TransTime))
-                FROM_packet-> SendTime = router_localtime;
-            else
-            {
-                router_localtime = FROM_packet-> SendTime + FROM_packet->TransTime;
-                if(FROM_packet->SenderID != GlobalVND.DeviceID)
-                    FROM_packet->SendTime = FROM_packet-> SendTime + FROM_packet->TransTime;
-            }
             uint64_t fail_latency;
+            if(router_localtime < FROM_packet->SendTime)
+                router_localtime = FROM_packet->SendTime ;
+
+            FROM_packet->ForwardID = GlobalVND.DeviceID;
+            FROM_packet-> SendTime = router_localtime;
             if(FROM_packet->SenderID != GlobalVND.DeviceID)
+            {
+                FROM_packet->SendTime = router_localtime + FROM_packet->TransTime;
                 FROM_packet->TransTime = transmission_latency((m2m_HQe_t *)FROM_packet, packet_next, &fail_latency, "zigbee");
+            }
+
             M2M_DBG(level, MESSAGE,"FROM_packet->TransTime = %d",FROM_packet->TransTime);
             
             //When transmission time calculate is fail transmission,
@@ -501,13 +535,14 @@ static void *m2m_route_processor_create(void *args)
             if(FROM_packet->TransTime == 0)
             {
                 M2M_DBG(level, MESSAGE,"transmission fail");
-                transfail = 1;
+                transfail = 1; //Setting transmission fail flag
+
                 if(FROM_packet->EntryNum == -1) //Small Communication Scheme
                 {
                     //Update sender control flag to index trans fail
                     volatile m2m_HQ_cf_t *hq_conflag = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[FROM_packet->SenderID];
-                    hq_conflag->transtime = FROM_packet-> SendTime + &fail_latency;
-                    router_localtime = FROM_packet-> SendTime + &fail_latency;
+                    hq_conflag->transtime = FROM_packet->SendTime + &fail_latency;
+                    router_localtime +=  &fail_latency;
                     hq_conflag->dataflag  = 44; //Signal sender transmission fail
                     M2M_DBG(level, MESSAGE,"hq_conflag->dataflag = %d", hq_conflag->dataflag);
                     M2M_DBG(level, MESSAGE,"hq_conflag->transtime = %d",hq_conflag->transtime);
@@ -523,10 +558,12 @@ static void *m2m_route_processor_create(void *args)
             }
             else
             {
-                router_localtime = FROM_packet-> SendTime + FROM_packet->TransTime;
+                router_localtime += FROM_packet->TransTime;
             }
+
             if(transfail != 1) {
 
+            //Data deliver to next hop node
             if(FROM_packet->EntryNum == -1) //Small Communication Scheme
             {
                 //Check receiver header queue is full or not
@@ -552,6 +589,7 @@ static void *m2m_route_processor_create(void *args)
             {
                 //FIXME
             }
+
             //Update sender/receiver local time
             if(FROM_packet->ReceiverID == packet_next && !strcmp(NODE_TYPE[packet_next], "ZED"))
             {

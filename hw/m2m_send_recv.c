@@ -188,10 +188,11 @@ M2M_ERR_T m2m_recv(void *dst_data, int senderID, int tag)
             return M2M_ERROR; 
         }
 
-    M2M_DBG(level, MESSAGE, "[%d]Copying data from local HQ ...",GlobalVND.DeviceID);                                                 
+    M2M_DBG(level, MESSAGE, "[%d]Copying data from local HQ ...",GlobalVND.DeviceID);
+
     do{ 
         rc = m2m_get_local_msg(senderID, dst_data, (m2m_HQe_t *)&m2m_msgbuf);
-    }while (rc != M2M_SUCCESS);
+    }while (rc != M2M_TRANS_SUCCESS && rc != M2M_TRANS_FAIL);
 
     GlobalVPMU.netrecv_count++;
     M2M_DBG(level, MESSAGE, "Exit m2m_recv() ...");
@@ -282,15 +283,19 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                     fputs(logtext, outFile);
 #endif
                     M2M_DBG(level, MESSAGE, "fail_latency = %llu",fail_latency);
-                   GlobalVND.TotalTransTimes += fail_latency;
 
-                    GlobalVPMU.netsend_qemu += (fail_latency);
-                    //*(GlobalVPMU.target_cpu_frequency / 1000.0); 
-                   *m2m_localtime = time_sync();
+                    GlobalVND.TotalTransTimes += fail_latency;
+                    GlobalVPMU.netsend_qemu   += fail_latency; //*(GlobalVPMU.target_cpu_frequency / 1000.0); 
+                    *m2m_localtime = time_sync();
                     M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
                     M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
                     return M2M_TRANS_FAIL;
                 }
+
+
+                GlobalVND.TotalTransTimes += msg_info->TransTime;
+                GlobalVPMU.netsend_qemu   += msg_info->TransTime;
+                *m2m_localtime = time_sync();
 
                 M2M_DBG(level, MESSAGE, "[%d] Header packet:\n PacketSize = %d\n SenderID = %d\n ReceiverID = %d\n ForwardID = %d\n EntryNum = %d\n SendTime(ns)  = %10llu\n TransTime(ns) = %10llu\n", GlobalVND.DeviceID, msg_info->PacketSize, msg_info->SenderID, msg_info->ReceiverID, msg_info->ForwardID, msg_info->EntryNum, msg_info->SendTime, msg_info->TransTime);
 
@@ -323,8 +328,6 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 while(hq_conflag_ptr->dataflag == 77){}
                 M2M_DBG(level, MESSAGE,"[%d]hq_conflag_ptr->dataflag = %d",GlobalVND.DeviceID,hq_conflag_ptr->dataflag);
 
-                GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
-                GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync());
                     //*(GlobalVPMU.target_cpu_frequency / 1000.0);
 
                 //FIXME the clock update need to consider different network type
@@ -335,7 +338,7 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                 M2M_DBG(level, MESSAGE,"[%d]Packet Arrivel Time = %llu",GlobalVND.DeviceID,(hq_conflag_ptr->transtime));
                 M2M_DBG(level, MESSAGE,"[%d]Device Local Time = %llu",GlobalVND.DeviceID,(time_sync()));
                 M2M_DBG(level, MESSAGE,"[%d]Recevier get header ... transmission time = %llu",GlobalVND.DeviceID,\
-                                                                         (hq_conflag_ptr->transtime-time_sync()));
+                                        (hq_conflag_ptr->transtime - (*m2m_localtime - msg_info->TransTime)));
 #ifdef M2M_LOGFILE
                     sprintf(tmptext,"ReceiverID: %3d ", msg_info->ReceiverID);
                     strcat(logtext, tmptext);
@@ -343,12 +346,16 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
                     strcat(logtext, tmptext);
                     sprintf(tmptext,"SendTime   : %15llu ", msg_info->SendTime);
                     strcat(logtext, tmptext);
-                    sprintf(tmptext,"TransmissionTime: %15llu\n", (hq_conflag_ptr->transtime-time_sync()));
+                    sprintf(tmptext,"ArrivalTime   : %15llu ", hq_conflag_ptr->transtime);
+                    strcat(logtext, tmptext);
+                    sprintf(tmptext,"TransmissionTime: %15llu\n", \
+                                                 (hq_conflag_ptr->transtime - (*m2m_localtime - msg_info->TransTime)));
                     strcat(logtext, tmptext);
                     fputs(logtext, outFile);
 #endif
-                
-                   *m2m_localtime = time_sync();
+                    GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime - *m2m_localtime);
+                    GlobalVPMU.netsend_qemu   += (hq_conflag_ptr->transtime - *m2m_localtime);
+                    *m2m_localtime = time_sync();
                     return M2M_TRANS_SUCCESS;
                 }
                 else
@@ -362,7 +369,9 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
 #endif
                    //GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime-time_sync());
                    //GlobalVPMU.netsend_qemu += (hq_conflag_ptr->transtime-time_sync())*(GlobalVPMU.target_cpu_frequency / 1000.0);
-                   *m2m_localtime = time_sync();
+                    GlobalVND.TotalTransTimes += (hq_conflag_ptr->transtime - *m2m_localtime);
+                    GlobalVPMU.netsend_qemu   += (hq_conflag_ptr->transtime - *m2m_localtime);
+                    *m2m_localtime = time_sync();
                     M2M_DBG(level, MESSAGE, "Packet fail in the middle way");
                     M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
                     return M2M_TRANS_FAIL;
@@ -413,8 +422,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     uint64_t tmp_time;
     volatile uint64_t *m2m_localtime;
     m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
-    if(strcmp(GlobalVND.DeviceType, "ZED"))
-        *m2m_localtime = time_sync();
+    *m2m_localtime = time_sync();
     tmp_time = *m2m_localtime;
     *m2m_localtime = MAX_TIME - 1; //Why "MAX_TIME -1" ? Because MAX_TIME used to judge "Device not warm up yet"
 
@@ -453,9 +461,9 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
         strcat(logtext, tmptext);
         sprintf(tmptext,"PacketSize: %4d ", localHQe_ptr->PacketSize);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ArrivalTime: %15llu ",(localHQe_ptr->SendTime+localHQe_ptr->TransTime));
+        sprintf(tmptext,"ReceiveTime     : %15llu ",*m2m_localtime);
         strcat(logtext, tmptext);
-        sprintf(tmptext,"ReceiveTime     : %15llu\n",*m2m_localtime);
+        sprintf(tmptext,"ArrivalTime: %15llu\n",(localHQe_ptr->SendTime+localHQe_ptr->TransTime));
         strcat(logtext, tmptext);
         fputs(logtext, outFile);
 #endif
@@ -496,8 +504,6 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
                                             // \ *(GlobalVPMU.target_cpu_frequency / 1000.0);
     }
             
-    //When achieve transmission, update to correct localtime
-    if(strcmp(GlobalVND.DeviceType, "ZED"))
     *m2m_localtime = time_sync();
 
     /*M2M_DBG(level, MESSAGE,"[%d]After GlobalVPMU.ticks= %llu",GlobalVND.DeviceID,GlobalVPMU.ticks);
@@ -505,7 +511,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     M2M_DBG(level, MESSAGE,"[%d]After time update after send() = %llu",GlobalVND.DeviceID,*m2m_localtime);*/
 
     M2M_DBG(level, MESSAGE, "Exit m2m_get_local_msg() ...");
-    return M2M_SUCCESS;
+    return M2M_TRANS_SUCCESS;
 }
 M2M_ERR_T m2m_send_recv_exit()
 {

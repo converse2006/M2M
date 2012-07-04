@@ -57,3 +57,4 @@ pc-bios/optionrom/linuxboot.bin
 tags
 *.[ch].swp
 cscope.out
+*.swp

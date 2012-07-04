@@ -10,22 +10,6 @@
 #include "m2m_mm.h"
 #include "vpmu.h"
 
-//Communication Time Estimation Parameters
-#define MaxPayLoad             84   //Bytes
-#define Percentage             100
-#define ChannelBusyRateCSMA    0.0 
-#define ChannelBusyRateTx      0.0 
-#define minBE                  2
-#define maxBE                  5
-#define MaxCSMABackoffs        4
-#define MaxFrameRetries        3
-#define AckWaitDuration        864  //microsecond(us)
-#define AUnitBackoffPeriod     320  //microsecond(us)
-#define CCADetectionTime       128  //microsecond(us)
-#define SIFS                   192  //microsecond(us)
-#define LIFS                   640  //microsecond(us)
-#define HEADERSIZE             43   //Bytes, Total Packet Size = 127Bytes
-#define DataRate               32   //microsecond(us)  250 kbps (kilo bits per second) = 32us/byte
 
 //time sync parameters
 extern int end_count, router_count, neighbor_end;
@@ -173,7 +157,7 @@ uint64_t time_sync()
         return get_vpmu_time();
 }
 
-uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uint64_t* fail_latency, char* networktype )
+uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uint64_t* fail_latency, char* networktype)
 {
     int level = 2;
     uint64_t TotalTransTimeus = 0;
@@ -182,6 +166,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uin
     {
         unsigned int FromDeviceID = msg_info->ForwardID;
         unsigned int ToDeviceID = next_hop_ID;
+
 
         //Calculate communication time from Intermediate node to Next node
         //It's one-hop latency
@@ -195,11 +180,19 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uin
             int cdma_ca_success = 0;
             while(cdma_ca_success == 0)
             {
+
                 int tmpBE = pow(2, BE);
                 int Backofftime = rand()%tmpBE;
+                //[NOTE]: Potential Problem
+                //Due to index 0 & -1 is used to return latency time for time synchronization
+                //But it does not need to return transmission fail but I did not fix this bug
+                //TODO: When use index 0 & -1 we need to used math formula to return the value!
+
+
                 //fprintf(stderr, "Backofftime = %d\n",Backofftime);
                 TotalTransTimeus += Backofftime * AUnitBackoffPeriod; //Random Backoff Time
                 TotalTransTimeus += CCADetectionTime;                 //Perform CCA (Clear Channel  Assessment)
+
                 int csma_fail = RandomHit(ChannelBusyRateCSMA * Percentage);
                 if(csma_fail == 1)
                 {
@@ -227,6 +220,7 @@ uint64_t transmission_latency(m2m_HQe_t *msg_info,  unsigned int next_hop_ID,uin
                 *fail_latency = (uint64_t)(TotalTransTimeus * 1000.0);
                 return 0;
             }
+
             TotalTransTimeus += (msg_info->PacketSize + HEADERSIZE) * DataRate;
             TotalTransTimeus += AckWaitDuration;
 

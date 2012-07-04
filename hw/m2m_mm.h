@@ -8,7 +8,7 @@
 
 #include "m2m.h" 
 
-#define x86_SHM_KEY                         8247
+#define x86_SHM_KEY                         9354
 //DATA BUFFER
 #define DATA_BUFFER_ENTRY_SIZE              4096  
 #define DATA_BUFFER_ENTRY_NUM               4

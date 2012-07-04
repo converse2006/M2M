@@ -132,7 +132,7 @@ char* jpeg_quality(string imageIn, int quality)
             
 }
 
-int ImageFromFile(char *infilename, unsigned char** buffer, int quality)
+int ImageFromCamera(char *infilename, unsigned char** buffer, int quality)
 {
         string imageIn;
         string readfilename;
@@ -283,7 +283,7 @@ int main(int argc, char **argv)
     else if(id == 2) //End device
     {
                 //Read Image from file(camera)
-                lSize = ImageFromFile(infilename, &buffer, quality);
+                lSize = ImageFromCamera(infilename, &buffer, quality);
 
                 bzero(netbuff, sizeof(netbuff));
                 sprintf(pic_size, "%d", lSize);

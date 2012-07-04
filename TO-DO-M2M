@@ -6,3 +6,13 @@ exceed the packet local time!!!
 2.Send/Recv function time synchronization:
 Check neighbor node local time  
 
+3.Router only have one time which 
+if packet exist
+time is promote by packet
+if no packet update by minimal neighbor local time
+
+4.All neighbor need to wait util local time exceed packet time, even receiver!!
+
+5.router need to identify who cause the local time (minimal time descirbe in 3.), and when it change, update the time
+because other router may sync with you cause deadlock
+

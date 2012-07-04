@@ -4195,12 +4195,12 @@ static inline void VPMU_set_config_from_file(void)
 	if (GlobalVPMU.cpu_model == 0)
     {
 		    config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm926", "r");
-		    config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm7tdmi", "r");
+		    //config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm7tdmi", "r");
             //config_file = fopen("./external/qemu-paslab/vpmu_config/def-config-arm11", "r");
 
             //fprintf(stderr, "VPMU Configure: ARM11\n");
-            //fprintf(stderr, "VPMU Configure: ARM926\n");
-            fprintf(stderr, "VPMU Configure: ARM7TDMI\n");
+            fprintf(stderr, "VPMU Configure: ARM926\n");
+            //fprintf(stderr, "VPMU Configure: ARM7TDMI\n");
     }
 	else if (GlobalVPMU.cpu_model == 1)
     {

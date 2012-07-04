@@ -11,6 +11,5 @@ adb -s emulator-5556 push surveillance_2 /data
 adb -s emulator-5556 push $1 /data
 cp surveillance_1 /home/converse/ANDROID/m2m_android/android.paslab/set_out
 cp surveillance_2 /home/converse/ANDROID/m2m_android/android.paslab/set_out
+cp surveillance_2 /home/converse/ANDROID/m2m_arm7/android.paslab/set_out
 
-cp surveillance_1 /home/converse/ANDROID/m2m_android/android.paslab/out/target/product/generic/data/app
-cp surveillance_2 /home/converse/ANDROID/m2m_android/android.paslab/out/target/product/generic/data/app

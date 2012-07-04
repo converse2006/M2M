@@ -1,0 +1,5 @@
+cd data; ./star 1 5 10000; cd ../
+cd data; ./star 2 5 10000; cd ../
+cd data; ./star 3 5 10000; cd ../
+cd data; ./star 4 5 10000; cd ../
+cd data; ./star 5 5 10000; cd ../

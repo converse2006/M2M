@@ -68,7 +68,7 @@ typedef enum
 #define NETWORK_EXIT           0x000C
 
 
-#define M2M_VPMUx               //CPU Phase update local clock  
+#define M2M_VPMU               //CPU Phase update local clock  
 #define M2M_SHOWINFOx          //Used to show map info 
 
 /*------------------------------------------------------------*/
@@ -84,7 +84,23 @@ typedef enum
 #define MAX_NODE_NUM                 100
 #define MAX_NODE_SIZE                100
 
-//int vpmu_trigger = 0;
+//Communication Time Estimation Parameters
+#define MaxPayLoad             84   //Bytes
+#define Percentage             100
+#define ChannelBusyRateCSMA    0.0 
+#define ChannelBusyRateTx      0.0 
+#define minBE                  2
+#define maxBE                  5
+#define MaxCSMABackoffs        4
+#define MaxFrameRetries        3
+#define AckWaitDuration        864  //microsecond(us)
+#define AUnitBackoffPeriod     320  //microsecond(us)
+#define CCADetectionTime       128  //microsecond(us)
+#define SIFS                   192  //microsecond(us)
+#define LIFS                   640  //microsecond(us)
+#define HEADERSIZE             43   //Bytes, Total Packet Size = 127Bytes
+#define DataRate               32   //microsecond(us)  250 kbps (kilo bits per second) = 32us/byte
+
 extern void network_initial(int id);
 
 extern void network_exit();
