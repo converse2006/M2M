@@ -15,7 +15,7 @@
 
 #ifdef M2MDEBUG
 #include <assert.h>
-#define M2M_DEBUG_LEVEL 0
+#define M2M_DEBUG_LEVEL 2
 
 
 #define M2M_DBG(level, CATEGORY, str, ...) \

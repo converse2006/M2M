@@ -9,8 +9,5 @@ make
 adb -s emulator-5554 push multihops /data
 adb -s emulator-5556 push multihops /data
 adb -s emulator-5558 push multihops /data
-adb -s emulator-5560 push multihops /data
-adb -s emulator-5562 push multihops /data
-adb -s emulator-5564 push multihops /data
-adb -s emulator-5564 push lin.jpeg /data
+adb -s emulator-5558 push lin.jpeg /data
 

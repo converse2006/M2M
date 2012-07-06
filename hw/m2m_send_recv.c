@@ -51,9 +51,12 @@ M2M_ERR_T m2m_send_recv_init()
     //As result, we add a meta for small size to judge wheather header already deliver
     //to recevier side, Sender modify dataflag=>1 and Receiver routing processor will
     //modify dataflag=>0 and correspond arrivel time
-    hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[GlobalVND.DeviceID];
-    hq_conflag_ptr->dataflag = 0;
-    hq_conflag_ptr->transtime = 0;
+    if(strcmp(GlobalVND.DeviceType, "ZR"))
+    {
+        hq_conflag_ptr = (m2m_HQ_cf_t *)(uintptr_t)m2m_hq_conflag_start[GlobalVND.DeviceID];
+        hq_conflag_ptr->dataflag = 0;
+        hq_conflag_ptr->transtime = 0;
+    }
 
 
     //Data buffer metadata initialization
@@ -389,12 +392,23 @@ M2M_ERR_T m2m_post_remote_msg(int receiverID,volatile void *msg,int size, m2m_HQ
     M2M_DBG(level, MESSAGE, "Exit m2m_post_remote_msg() ...");
     return M2M_SUCCESS;
 }
+static uint64_t tmp_time = 0;
 M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info)
 {
     int level = 1;
     volatile m2m_HQ_meta_t *hq_meta_ptr;
     volatile m2m_HQe_t     *localHQe_ptr;
     volatile long          *packet_ptr;
+
+    //When waiting for receving data, advance time to MAX
+    volatile uint64_t *m2m_localtime;
+    m2m_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
+    if(tmp_time == 0)
+    {
+        *m2m_localtime = time_sync();
+        tmp_time = *m2m_localtime;
+        *m2m_localtime = MAX_TIME - 1; //Why "MAX_TIME -1" ? Because MAX_TIME used to judge "Device not warm up yet"
+    }
 
 
     if(!strcmp(GlobalVND.DeviceType, "ZED"))
@@ -417,7 +431,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     M2M_DBG(level, MESSAGE, "Enter m2m_get_local_msg() ...");
     M2M_DBG(level, MESSAGE, "Packer exist in header queue  ...");
 
-
+    /*
     //When waiting for receving data, advance time to MAX
     uint64_t tmp_time;
     volatile uint64_t *m2m_localtime;
@@ -425,6 +439,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
     *m2m_localtime = time_sync();
     tmp_time = *m2m_localtime;
     *m2m_localtime = MAX_TIME - 1; //Why "MAX_TIME -1" ? Because MAX_TIME used to judge "Device not warm up yet"
+    */
 
     /*M2M_DBG(level, MESSAGE, "[%d]Before producer = %d", GlobalVND.DeviceID, hq_meta_ptr->producer);
     M2M_DBG(level, MESSAGE, "[%d]Before consumer = %d", GlobalVND.DeviceID, hq_meta_ptr->consumer);*/
@@ -452,6 +467,7 @@ M2M_ERR_T m2m_get_local_msg(int senderID,volatile void *msg, m2m_HQe_t *msg_info
 
         //After finish recv(), resume device local time
         *m2m_localtime = tmp_time;
+        tmp_time = 0;
         hq_meta_ptr->consumer = (hq_meta_ptr->consumer + 2) % HEADER_QUEUE_ENTRY_NUM;
 
 #ifdef M2M_LOGFILE

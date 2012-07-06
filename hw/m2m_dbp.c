@@ -64,6 +64,8 @@ M2M_ERR_T m2m_dbp_init()
 #ifndef ROUTER_RFD
             m2m_hq_conflag_start[ind] = NODE_SHM_LOCATION[ind] + ((NODE_MAX_LINKS + 2) * TOTAL_HEADER_QUEUE_SIZE) + \
                                         TOTAL_DATA_BUFFER_SIZE;
+#else
+            continue;
 #endif
         else if(!strcmp(NODE_TYPE[ind], "ZC")) 
             m2m_hq_conflag_start[ind] = NODE_SHM_LOCATION[ind] + ((NODE_MAX_LINKS + 2) * TOTAL_HEADER_QUEUE_SIZE) + \

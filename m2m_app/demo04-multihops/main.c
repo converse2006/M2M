@@ -1,7 +1,3 @@
-// C++
-#include <iostream>
-#include <string>
-#include <utility>
 
 // C
 #include <math.h>
@@ -9,8 +5,8 @@
 #include <limits.h>
 #include <time.h>
 #include <ctype.h>
+#include <string.h>
 
-using namespace std;
 
 //M2M Common API
 #include "../network_device.c"
@@ -57,7 +53,7 @@ int main(int argc, char **argv)
     int ret;
     unsigned char *buffer = NULL;
     size_t result;
-    char netbuff[PACKETSIZE+1] = "2:88715@";
+    char netbuff[PACKETSIZE+1] ;
     char pic_size[PACKETSIZE+1];
     char idbuff[PACKETSIZE+1];
 
@@ -160,7 +156,7 @@ int main(int argc, char **argv)
                 fclose(wFile);
                 free(buffer);
     }
-    else if(id == 6) //End device
+    else if(id == 3) //End device
     {
                 ret = Network_Init(id, "Zigbee", 5);
                 //Read Image from file(camera)

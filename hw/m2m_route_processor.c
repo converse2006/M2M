@@ -164,13 +164,7 @@ static void *m2m_route_processor_create(void *args)
 
     int search_num = 0;
     if(!strcmp(GlobalVND.DeviceType,"ZR")) //"+ 1" for device itself packet deliver to other device
-    {
-#ifndef ROUTER_RFD
         search_num = GlobalVND.NeighborNum;
-#else
-        search_num = GlobalVND.NeighborNum + 1;
-#endif
-    }
     else
         search_num = GlobalVND.NeighborNum + 1;
 
@@ -181,6 +175,21 @@ static void *m2m_route_processor_create(void *args)
         int flag = 1;
         while(flag != 0) //Check header queue is empty or not
         {
+            for(index = 0; index < search_num; index++)
+            {
+                if(index == GlobalVND.NeighborNum)
+                    meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[NODE_MAX_LINKS + 1];
+                else
+                    meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[index];
+
+                if(meta_ptr->producer != meta_ptr->consumer)
+                {
+                    flag = 0;
+                    break;
+                }
+            }
+
+            /*
             for(index = 0; index < GlobalVND.NeighborNum; index++)
             {
                 meta_ptr = (m2m_HQ_meta_t *)(uintptr_t)m2m_hq_meta_start[index];
@@ -194,7 +203,7 @@ static void *m2m_route_processor_create(void *args)
                 if(meta_ptr->producer != meta_ptr->consumer)
                     flag = 0;
             }
-
+            */
 
             //Header Queue is empty, update local clock(ZR)
             //NOTE: When router connected device all dead device or call recv and waiting for,
@@ -320,23 +329,23 @@ static void *m2m_route_processor_create(void *args)
                         }
                     }
 
-                    //if not,check device local clock and ignore packet_from/packet_next device local time
-                    if(neigbor_device_deadline[NODE_MAX_LINKS + 1] != 1 && 
-                       packet_from != GlobalVND.DeviceID && packet_next != GlobalVND.DeviceID)
+                    //if not,check device local clock and ignore packet_from device local time
+                    if(neigbor_device_deadline[NODE_MAX_LINKS + 1] != 1 && packet_from != GlobalVND.DeviceID)
                     {
                         neighbor_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.DeviceID];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu", GlobalVND.DeviceID, *neighbor_localtime);
 
                         uint64_t tmp_packet_mintime;
+                        //[NOTE]Wait for neighbor local time optimization
                         if(packet_mintime > one_hop_latency("zigbee"))
                             tmp_packet_mintime = (packet_mintime - one_hop_latency("zigbee"));
                         else
                             tmp_packet_mintime = 0;
                         if(tmp_packet_mintime <= *neighbor_localtime)
                         {
-                            neigbor_device_deadline[index] = 1;
+                            neigbor_device_deadline[NODE_MAX_LINKS + 1] = 1;
                             deadline_count++;
-                            M2M_DBG(level, MESSAGE, "Device %d local clock EXCEED!!\n ", GlobalVND.Neighbors[index]);
+                            M2M_DBG(level, MESSAGE, "Device %d local clock EXCEED!!\n ", GlobalVND.DeviceID);
                         }
                     }
                 }
@@ -368,15 +377,15 @@ static void *m2m_route_processor_create(void *args)
                         }
                     }
 
-                    //if not,check device local clock and ignore packet_from/packet_next device local time
-                    if(neigbor_device_deadline[index] != 1 && 
-                       packet_from != GlobalVND.Neighbors[index] && packet_next != GlobalVND.Neighbors[index])
+                    //if not,check device local clock and ignore packet_from device local time
+                    if(neigbor_device_deadline[index] != 1 && packet_from != GlobalVND.Neighbors[index])
                     {
                         neighbor_localtime = (uint64_t *)m2m_localtime_start[GlobalVND.Neighbors[index]];
                         M2M_DBG(level, MESSAGE,"Device %d local clock = %llu\n ", \
                                                 GlobalVND.Neighbors[index], *neighbor_localtime);
 
                         uint64_t tmp_packet_mintime;
+                        //[NOTE]Wait for neighbor local time optimization
                         if(packet_mintime > one_hop_latency("zigbee"))
                             tmp_packet_mintime = (packet_mintime - one_hop_latency("zigbee"));
                         else
